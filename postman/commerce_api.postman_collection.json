@@ -1,0 +1,1839 @@
+{
+  "info": {
+    "_postman_id": "8d0d4bf2-0c47-4aa7-8f54-9e4b0bb8dbd2",
+    "name": "Commerce API",
+    "description": "# Commerce API Postman Collection\n\nFull collection for the Django REST Framework eCommerce backend.\n\n### Authentication & Setup\n1. Make sure your Django server is running (`python manage.py runserver`).\n2. Set `base_url` (default: `http://127.0.0.1:8000`), `email`, and `password` in Collection Variables or Environment.\n3. Run **Authentication > Login**. The test script automatically captures `access_token` and `refresh_token` and stores them in your variables.\n4. All subsequent authenticated endpoints use Bearer Token (`{{access_token}}`) automatically.\n\n### CoreRenderer Format\nThe API uses `CoreRenderer` which wraps responses in:\n```json\n{\n  \"status\": true,\n  \"status_code\": 200,\n  \"timestamp\": \"...\",\n  \"data\": { ... }\n}\n```\nAll test scripts in this collection are written to seamlessly extract data from `response.data` or fallback to root.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://127.0.0.1:8000",
+      "type": "string"
+    },
+    {
+      "key": "email",
+      "value": "super@gmail.com",
+      "type": "string"
+    },
+    {
+      "key": "password",
+      "value": "1523",
+      "type": "string"
+    },
+    {
+      "key": "access_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "refresh_token",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "product_id",
+      "value": "6",
+      "type": "string"
+    },
+    {
+      "key": "product_slug",
+      "value": "mumbai-indian-printed-t-shirt-1792745858",
+      "type": "string"
+    },
+    {
+      "key": "banner_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "event_banner_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "order_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "cart_item_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "wishlist_item_id",
+      "value": "1",
+      "type": "string"
+    },
+    {
+      "key": "oauth_token",
+      "value": "YOUR_GOOGLE_ID_TOKEN",
+      "type": "string"
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{access_token}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alice Kumar\",\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/register/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "register"
+              ]
+            },
+            "description": "Register a new user account."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 or 200', function () {",
+                  "    pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/login/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "login"
+              ]
+            },
+            "description": "Log in with email and password. Automatically stores access_token and refresh_token into collection variables."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Login returns access and refresh tokens', function () {",
+                  "    let res = {};",
+                  "    try { res = pm.response.json(); } catch (e) { res = {}; }",
+                  "    const data = (res && typeof res === 'object' && 'data' in res) ? res.data : res;",
+                  "    pm.expect(data).to.have.property('access');",
+                  "    pm.collectionVariables.set('access_token', data.access);",
+                  "    if (data.refresh) {",
+                  "        pm.collectionVariables.set('refresh_token', data.refresh);",
+                  "    }",
+                  "    console.log('JWT access token saved successfully.');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Token Obtain Pair (SimpleJWT)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"password\": \"{{password}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/token/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "token"
+              ]
+            },
+            "description": "Direct SimpleJWT token obtain endpoint."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Obtain token returns access and refresh tokens', function () {",
+                  "    let res = {};",
+                  "    try { res = pm.response.json(); } catch (e) { res = {}; }",
+                  "    const data = (res && typeof res === 'object' && 'data' in res) ? res.data : res;",
+                  "    pm.expect(data).to.have.property('access');",
+                  "    pm.collectionVariables.set('access_token', data.access);",
+                  "    if (data.refresh) {",
+                  "        pm.collectionVariables.set('refresh_token', data.refresh);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh access token",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refresh\": \"{{refresh_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/token/refresh/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "token",
+                "refresh"
+              ]
+            },
+            "description": "Obtain a fresh access token using the refresh token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Refresh returns new access token', function () {",
+                  "    let res = {};",
+                  "    try { res = pm.response.json(); } catch (e) { res = {}; }",
+                  "    const data = (res && typeof res === 'object' && 'data' in res) ? res.data : res;",
+                  "    pm.expect(data).to.have.property('access');",
+                  "    pm.collectionVariables.set('access_token', data.access);",
+                  "    console.log('Access token refreshed.');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "OAuth Login (Google)",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"google\",\n  \"token\": \"{{oauth_token}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/oauth/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "oauth"
+              ]
+            },
+            "description": "Verify Google ID token and return JWT tokens for the authenticated user."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('OAuth returns access and refresh tokens', function () {",
+                  "    let res = {};",
+                  "    try { res = pm.response.json(); } catch (e) { res = {}; }",
+                  "    const data = (res && typeof res === 'object' && 'data' in res) ? res.data : res;",
+                  "    if (data && data.access) {",
+                  "        pm.collectionVariables.set('access_token', data.access);",
+                  "        if (data.refresh) pm.collectionVariables.set('refresh_token', data.refresh);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "User",
+      "item": [
+        {
+          "name": "Get current user profile",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/auth/me/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Retrieve profile details of currently authenticated user."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update current user profile (Partial)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Alice Kumar\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/me/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Partially update current user's name or email."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Replace current user profile",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"{{email}}\",\n  \"name\": \"Alice Kumar\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/auth/me/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "auth",
+                "me"
+              ]
+            },
+            "description": "Update current user profile fields."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "List products",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/products/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "description": "List all active products (or all products if staff)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Auto-capture first product slug and id', function () {",
+                  "    let res = {};",
+                  "    try { res = pm.response.json(); } catch (e) { res = {}; }",
+                  "    const data = (res && typeof res === 'object' && 'data' in res) ? res.data : res;",
+                  "    const items = Array.isArray(data) ? data : (data.results || []);",
+                  "    if (items.length > 0) {",
+                  "        if (items[0].slug) {",
+                  "            pm.collectionVariables.set('product_slug', items[0].slug);",
+                  "        }",
+                  "        if (items[0].id) {",
+                  "            pm.collectionVariables.set('product_id', String(items[0].id));",
+                  "        }",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get product by slug",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_slug}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{product_slug}}"
+              ]
+            },
+            "description": "Fetch a product by its slug (lookup_field is slug)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create product (admin/staff)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Premium Cotton Jacket\",\n  \"description\": \"Modern classic styling crafted with breathable cotton.\",\n  \"price\": \"69.99\",\n  \"stock\": 20,\n  \"type\": \"outerwear\",\n  \"attributes\": {\n    \"color\": \"navy\",\n    \"sizes\": [\n      \"M\",\n      \"L\",\n      \"XL\"\n    ]\n  },\n  \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/products/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "description": "Create a new product (requires admin or staff token). Slug is auto-generated."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Product created (201)', function () {",
+                  "    pm.expect([200, 201]).to.include(pm.response.code);",
+                  "    const res = pm.response.json();",
+                  "    const data = (res && typeof res === 'object' && res.data) ? res.data : res;",
+                  "    if (data.slug) {",
+                  "        pm.collectionVariables.set('product_slug', data.slug);",
+                  "    }",
+                  "    if (data.id) {",
+                  "        pm.collectionVariables.set('product_id', String(data.id));",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create product with image (admin/staff formdata)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "name",
+                  "value": "Graphic Casual Hoodie",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Heavyweight fleece hoodie with relaxed fit.",
+                  "type": "text"
+                },
+                {
+                  "key": "price",
+                  "value": "59.99",
+                  "type": "text"
+                },
+                {
+                  "key": "stock",
+                  "value": "15",
+                  "type": "text"
+                },
+                {
+                  "key": "type",
+                  "value": "apparel",
+                  "type": "text"
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "image",
+                  "type": "file",
+                  "src": ""
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/products/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products"
+              ]
+            },
+            "description": "Upload a product with an image file using multipart form-data."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Product created', function () {",
+                  "    pm.expect([200, 201]).to.include(pm.response.code);",
+                  "    const res = pm.response.json();",
+                  "    const data = (res && typeof res === 'object' && res.data) ? res.data : res;",
+                  "    if (data.slug) pm.collectionVariables.set('product_slug', data.slug);",
+                  "    if (data.id) pm.collectionVariables.set('product_id', String(data.id));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update product (admin/staff)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": \"54.99\",\n  \"stock\": 25\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_slug}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{product_slug}}"
+              ]
+            },
+            "description": "Partially update product details using its slug."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete product (admin/staff)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/products/{{product_slug}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "products",
+                "{{product_slug}}"
+              ]
+            },
+            "description": "Delete product by slug (admin or staff only)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204 or 200', function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Sale banners",
+      "item": [
+        {
+          "name": "List active banners",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/banners/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "banners"
+              ]
+            },
+            "description": "List all active banners within current time window (all for staff)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Auto-capture banner_id', function () {",
+                  "    let res = {};",
+                  "    try { res = pm.response.json(); } catch (e) { res = {}; }",
+                  "    const data = (res && typeof res === 'object' && 'data' in res) ? res.data : res;",
+                  "    const items = Array.isArray(data) ? data : (data.results || []);",
+                  "    if (items.length > 0 && items[0].id) {",
+                  "        pm.collectionVariables.set('banner_id', String(items[0].id));",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get banner by ID",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/banners/{{banner_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "banners",
+                "{{banner_id}}"
+              ]
+            },
+            "description": "Retrieve banner details by primary key ID."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create banner (admin/staff)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Winter Festival Sale",
+                  "type": "text"
+                },
+                {
+                  "key": "altText",
+                  "value": "Up to 50% off winterwear",
+                  "type": "text"
+                },
+                {
+                  "key": "imageUrl",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "url",
+                  "value": "https://example.com/sale",
+                  "type": "text"
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "starts_at",
+                  "value": "2026-11-01T00:00:00Z",
+                  "type": "text"
+                },
+                {
+                  "key": "ends_at",
+                  "value": "2026-12-31T23:59:59Z",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/banners/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "banners"
+              ]
+            },
+            "description": "Create a sale banner with image upload (requires admin or staff)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Banner created (201)', function () {",
+                  "    pm.expect([200, 201]).to.include(pm.response.code);",
+                  "    const res = pm.response.json();",
+                  "    const data = (res && typeof res === 'object' && res.data) ? res.data : res;",
+                  "    if (data.id) pm.collectionVariables.set('banner_id', String(data.id));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update banner (admin/staff)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"title\": \"Extended Winter Mega Sale\",\n  \"altText\": \"Up to 60% off winterwear\",\n  \"is_active\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/banners/{{banner_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "banners",
+                "{{banner_id}}"
+              ]
+            },
+            "description": "Update banner details by ID."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete banner (admin/staff)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/banners/{{banner_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "banners",
+                "{{banner_id}}"
+              ]
+            },
+            "description": "Delete banner by ID (admin/staff only)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204 or 200', function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Event sale banners",
+      "item": [
+        {
+          "name": "List active event banners",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/event-banners/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "event-banners"
+              ]
+            },
+            "description": "List all active event banners currently running."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Auto-capture event_banner_id', function () {",
+                  "    let res = {};",
+                  "    try { res = pm.response.json(); } catch (e) { res = {}; }",
+                  "    const data = (res && typeof res === 'object' && 'data' in res) ? res.data : res;",
+                  "    const items = Array.isArray(data) ? data : (data.results || []);",
+                  "    if (items.length > 0 && items[0].id) {",
+                  "        pm.collectionVariables.set('event_banner_id', String(items[0].id));",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get event banner by ID",
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/event-banners/{{event_banner_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "event-banners",
+                "{{event_banner_id}}"
+              ]
+            },
+            "description": "Fetch single event banner by ID."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Create event banner (admin/staff)",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                {
+                  "key": "title",
+                  "value": "Black Friday Mega Deal",
+                  "type": "text"
+                },
+                {
+                  "key": "altText",
+                  "value": "Black Friday Sale Banner",
+                  "type": "text"
+                },
+                {
+                  "key": "imageUrl",
+                  "type": "file",
+                  "src": ""
+                },
+                {
+                  "key": "url",
+                  "value": "https://example.com/black-friday",
+                  "type": "text"
+                },
+                {
+                  "key": "description",
+                  "value": "Biggest shopping festival of the year with flat 40% off.",
+                  "type": "text"
+                },
+                {
+                  "key": "is_active",
+                  "value": "true",
+                  "type": "text"
+                },
+                {
+                  "key": "starts_at",
+                  "value": "2026-11-20T00:00:00Z",
+                  "type": "text"
+                },
+                {
+                  "key": "ends_at",
+                  "value": "2026-11-30T23:59:59Z",
+                  "type": "text"
+                }
+              ]
+            },
+            "url": {
+              "raw": "{{base_url}}/api/event-banners/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "event-banners"
+              ]
+            },
+            "description": "Create an event sale banner with image and description (admin/staff)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Event banner created (201)', function () {",
+                  "    pm.expect([200, 201]).to.include(pm.response.code);",
+                  "    const res = pm.response.json();",
+                  "    const data = (res && typeof res === 'object' && res.data) ? res.data : res;",
+                  "    if (data.id) pm.collectionVariables.set('event_banner_id', String(data.id));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update event banner (admin/staff)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"description\": \"Updated event description with extended hours.\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/event-banners/{{event_banner_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "event-banners",
+                "{{event_banner_id}}"
+              ]
+            },
+            "description": "Partially update event banner."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete event banner (admin/staff)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/event-banners/{{event_banner_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "event-banners",
+                "{{event_banner_id}}"
+              ]
+            },
+            "description": "Delete event banner (admin/staff only)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204 or 200', function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Cart",
+      "item": [
+        {
+          "name": "List cart items",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/u/cart-items/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "u",
+                "cart-items"
+              ]
+            },
+            "description": "List all items in the authenticated user's cart."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Auto-capture cart_item_id', function () {",
+                  "    let res = {};",
+                  "    try { res = pm.response.json(); } catch (e) { res = {}; }",
+                  "    const data = (res && typeof res === 'object' && 'data' in res) ? res.data : res;",
+                  "    const items = Array.isArray(data) ? data : (data.results || []);",
+                  "    if (items.length > 0 && items[0].id) {",
+                  "        pm.collectionVariables.set('cart_item_id', String(items[0].id));",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get cart item by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/u/cart-items/{{cart_item_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "u",
+                "cart-items",
+                "{{cart_item_id}}"
+              ]
+            },
+            "description": "Fetch a specific cart item."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add item to cart",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product\": \"{{product_id}}\",\n  \"quantity\": 1\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/u/cart-items/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "u",
+                "cart-items"
+              ]
+            },
+            "description": "Add a product to user's cart (user is automatically assigned)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Item added to cart (201)', function () {",
+                  "    pm.expect([200, 201]).to.include(pm.response.code);",
+                  "    const res = pm.response.json();",
+                  "    const data = (res && typeof res === 'object' && res.data) ? res.data : res;",
+                  "    if (data.id) pm.collectionVariables.set('cart_item_id', String(data.id));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update cart item quantity",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 3\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/u/cart-items/{{cart_item_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "u",
+                "cart-items",
+                "{{cart_item_id}}"
+              ]
+            },
+            "description": "Update the quantity of an item in user's cart."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove item from cart",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/u/cart-items/{{cart_item_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "u",
+                "cart-items",
+                "{{cart_item_id}}"
+              ]
+            },
+            "description": "Remove an item from user's cart."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204 or 200', function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Wish list",
+      "item": [
+        {
+          "name": "List wish list items",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/u/wish-list/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "u",
+                "wish-list"
+              ]
+            },
+            "description": "List all products on the user's wish list."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Auto-capture wishlist_item_id', function () {",
+                  "    let res = {};",
+                  "    try { res = pm.response.json(); } catch (e) { res = {}; }",
+                  "    const data = (res && typeof res === 'object' && 'data' in res) ? res.data : res;",
+                  "    const items = Array.isArray(data) ? data : (data.results || []);",
+                  "    if (items.length > 0 && items[0].id) {",
+                  "        pm.collectionVariables.set('wishlist_item_id', String(items[0].id));",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get wish list item",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/u/wish-list/{{wishlist_item_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "u",
+                "wish-list",
+                "{{wishlist_item_id}}"
+              ]
+            },
+            "description": "Get a specific wish list item."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Add item to wish list",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product\": \"{{product_id}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/u/wish-list/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "u",
+                "wish-list"
+              ]
+            },
+            "description": "Add a product to user's wish list."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Item added to wish list (201)', function () {",
+                  "    pm.expect([200, 201]).to.include(pm.response.code);",
+                  "    const res = pm.response.json();",
+                  "    const data = (res && typeof res === 'object' && res.data) ? res.data : res;",
+                  "    if (data.id) pm.collectionVariables.set('wishlist_item_id', String(data.id));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Remove item from wish list",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/u/wish-list/{{wishlist_item_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "u",
+                "wish-list",
+                "{{wishlist_item_id}}"
+              ]
+            },
+            "description": "Remove a product from user's wish list."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204 or 200', function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "Create order",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping_address\": \"42 High Street, Downtown\",\n  \"items\": [\n    {\n      \"product_id\": {{product_id}},\n      \"quantity\": 1\n    }\n  ]\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "Place an order for active products. User is automatically inferred from auth token."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Order created (201)', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Created order has an id and captures into variable', function () {",
+                  "    let res = {};",
+                  "    try { res = pm.response.json(); } catch (e) { res = {}; }",
+                  "    const data = (res && typeof res === 'object' && 'data' in res) ? res.data : res;",
+                  "    pm.expect(data).to.have.property('id');",
+                  "    pm.collectionVariables.set('order_id', String(data.id));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "List my orders",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/orders/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders"
+              ]
+            },
+            "description": "List orders for the authenticated user (or all orders if staff)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Auto-capture order_id', function () {",
+                  "    let res = {};",
+                  "    try { res = pm.response.json(); } catch (e) { res = {}; }",
+                  "    const data = (res && typeof res === 'object' && 'data' in res) ? res.data : res;",
+                  "    const items = Array.isArray(data) ? data : (data.results || []);",
+                  "    if (items.length > 0 && items[0].id) {",
+                  "        pm.collectionVariables.set('order_id', String(items[0].id));",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get order by ID",
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{order_id}}"
+              ]
+            },
+            "description": "Retrieve order summary and line items by ID."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Update order status (admin/staff)",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{order_id}}"
+              ]
+            },
+            "description": "Update order status (choices: pending, confirmed, shipped, delivered, cancelled). Requires admin/staff."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        },
+        {
+          "name": "Delete order (admin/staff)",
+          "request": {
+            "method": "DELETE",
+            "url": {
+              "raw": "{{base_url}}/api/orders/{{order_id}}/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "api",
+                "orders",
+                "{{order_id}}"
+              ]
+            },
+            "description": "Delete an order (admin/staff only)."
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204 or 200', function () {",
+                  "    pm.expect([200, 204]).to.include(pm.response.code);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

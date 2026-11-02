@@ -5,12 +5,12 @@ from .models import (
     Order,
     OrderItem,
     Product,
-    SaleBanner,
+    CarouselBanner,
     WishList,
     CartItem,
     Review,
 )
 
 admin.site.register(
-    (Product, SaleBanner, Order, OrderItem, WishList, CartItem, Review, EventSaleBanner)
+    (Product, CarouselBanner, Order, OrderItem, WishList, CartItem, Review, EventSaleBanner)
 )

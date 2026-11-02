@@ -1,5 +1,4 @@
 from rest_framework import serializers
-
 from .models import User
 
 
@@ -20,3 +19,17 @@ class UserProfileSerializer(serializers.ModelSerializer):
     class Meta:
         model = User
         fields = ("email", "name")
+
+
+class UserProfileExtendedSerializer(serializers.ModelSerializer):
+    user = UserProfileSerializer(read_only=True)
+    class Meta:
+        model = UserProfileSerializer
+        fields = "__all__"
+    
+
+
+class OAuthSerializer(serializers.Serializer):
+    token = serializers.CharField()
+    provider = serializers.ChoiceField(choices=["google", "github", "facebook"])
+    

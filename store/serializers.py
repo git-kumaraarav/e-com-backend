@@ -2,7 +2,7 @@ from django.utils import timezone
 from rest_framework import serializers
 from store.models import CartItem
 from .models import (
-    SaleBanner, 
+    CarouselBanner, 
     Product, 
     OrderItem, 
     CartItem,
@@ -14,16 +14,19 @@ from .models import (
 from .services import create_order
 
 class WishListSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     class Meta:
         model = WishList
         fields = "__all__"
         read_only_fields = ("id", "added_at")
 
 class CartItemSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     class Meta:
         model = CartItem
         fields = "__all__"
         read_only_fields = ("id",)
+
 
 class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
@@ -35,12 +38,12 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
-        read_only_fields = ("id", "created_at", "updated_at")
+        read_only_fields = ("id", "created_at", "updated_at", 'slug')
 
 
-class SaleBannerSerializer(serializers.ModelSerializer):
+class CarouselBannerSerializer(serializers.ModelSerializer):
     class Meta:
-        model = SaleBanner
+        model = CarouselBanner
         fields = "__all__"
         read_only_fields = ("id", "created_at")
 

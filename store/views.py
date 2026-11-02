@@ -3,17 +3,19 @@ from django.utils import timezone
 from rest_framework import permissions, viewsets
 from rest_framework.request import Request
 from rest_framework.response import Response
+from django.db.models import Q
+from django.shortcuts import get_object_or_404
 
-from .models import CartItem, Order, Product, SaleBanner, WishList, EventSaleBanner
+from .models import CartItem, Order, Product, CarouselBanner, WishList, EventSaleBanner
 from .serializers import (
     OrderCreateSerializer,
     OrderSerializer,
     ProductSerializer,
-    SaleBannerSerializer,
+    CarouselBannerSerializer,
     CartItemSerializer,
     ReviewSerializer,
     WishListSerializer,
-    EventSaleBannerSerializer
+    EventSaleBannerSerializer,
 )
 from .permissions import (
     IsAdminOrReadOnly,
@@ -24,6 +26,7 @@ from .permissions import (
 class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = (IsAdminOrReadOnly,)
+    lookup_field = "slug"
 
     def get_queryset(self) -> QuerySet[Product]:  # type: ignore
         queryset = Product.objects.all()
@@ -32,16 +35,15 @@ class ProductViewSet(viewsets.ModelViewSet):
         return queryset
 
 
-class SaleBannerViewSet(viewsets.ModelViewSet):
-    serializer_class = SaleBannerSerializer
+class CarouselBannerViewSet(viewsets.ModelViewSet):
+    serializer_class = CarouselBannerSerializer
     permission_classes = (IsAdminOrReadOnly,)
 
-    def get_queryset(self) -> QuerySet[SaleBanner]:  # type: ignore
-        queryset = SaleBanner.objects.all()
+    def get_queryset(self) -> QuerySet[CarouselBanner]:  # type: ignore
+        queryset = CarouselBanner.objects.all()
         if not self.request.user.is_staff:
-            now = timezone.now()
             queryset = queryset.filter(
-                is_active=True, starts_at__lte=now, ends_at__gte=now
+                is_active=True
             )
         return queryset
 
@@ -98,6 +100,19 @@ class EventSaleBannerViewSet(viewsets.ModelViewSet):
         if not self.request.user.is_staff:
             now = timezone.now()
             queryset = queryset.filter(
-                is_active=True, starts_at__lte=now, ends_at__gte=now
+                is_active=True 
             )
         return queryset
+
+
+class SearchViewSet(viewsets.ViewSet):
+    permission_classes = (permissions.AllowAny,)
+
+    def list(self, request: Request) -> Response:
+        query = request.query_params.get("q", "")
+        products = Product.objects.filter(
+            Q(name__icontains=query) | Q(description__icontains=query), is_active=True
+        )
+        serializer = ProductSerializer(products, many=True)
+        return Response(serializer.data)
+

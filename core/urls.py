@@ -26,15 +26,17 @@ from store.views import (
     CartViewSet,
     OrderViewSet,
     ProductViewSet,
-    SaleBannerViewSet,
+    CarouselBannerViewSet,
     EventSaleBannerViewSet,
     WishListViewset,
 )
-from users.views import LoginView, RegisterView, UserProfileView
+from users.views import (
+    LoginView, RegisterView, UserProfileView, OAuthView
+)
 
 router = DefaultRouter()
 router.register("products", ProductViewSet, basename="product")
-router.register("banners", SaleBannerViewSet, basename="banner")
+router.register("banners", CarouselBannerViewSet, basename="banner")
 router.register("event-banners", EventSaleBannerViewSet, basename="event-banner")
 router.register("orders", OrderViewSet, basename="order")
 router.register("u/cart-items", CartViewSet, basename="cart-item")
@@ -47,6 +49,7 @@ urlpatterns = [
     path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/auth/me/", UserProfileView.as_view(), name="user-profile"),
+    path("api/auth/oauth/", OAuthView.as_view(), name="oauth_login"),
     path("api/", include(router.urls)),
 ]
 
