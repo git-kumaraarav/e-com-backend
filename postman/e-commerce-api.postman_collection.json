@@ -1,0 +1,419 @@
+{
+  "info": {
+    "_postman_id": "f2dbf4a1-4d6c-4c3f-8b5e-2d0b1b8c2f31",
+    "name": "E-Commerce API",
+    "description": "Requests for the Django e-commerce API. Set baseUrl, then run Register or Login to populate the JWT variables.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://127.0.0.1:8000" },
+    { "key": "accessToken", "value": "" },
+    { "key": "refreshToken", "value": "" },
+    { "key": "productSlug", "value": "example-product-123" },
+    { "key": "productId", "value": "1" },
+    { "key": "bannerId", "value": "1" },
+    { "key": "eventBannerId", "value": "1" },
+    { "key": "orderId", "value": "1" },
+    { "key": "cartItemId", "value": "1" },
+    { "key": "wishListItemId", "value": "1" }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      { "key": "token", "value": "{{accessToken}}", "type": "string" }
+    ]
+  },
+  "item": [
+    {
+      "name": "Authentication",
+      "item": [
+        {
+          "name": "Register",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Test User\",\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/register/"
+          }
+        },
+        {
+          "name": "Login",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/login/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.accessToken) pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "if (body.refreshToken) pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Refresh Token",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/token/refresh/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.accessToken) pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "if (body.refreshToken) pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Get Current User",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/auth/me/"
+          }
+        },
+        {
+          "name": "Update Current User",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated User\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/me/"
+          }
+        },
+        {
+          "name": "OAuth Login (Google)",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"provider\": \"google\",\n  \"token\": \"paste-google-id-token-here\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/oauth/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const body = pm.response.json();",
+                  "if (body.accessToken) pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "if (body.refreshToken) pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Products",
+      "item": [
+        {
+          "name": "List Products",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/products/" }
+        },
+        {
+          "name": "Create Product",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Example Product\",\n  \"description\": \"A product description\",\n  \"price\": \"29.99\",\n  \"stock\": 20,\n  \"type\": \"general\",\n  \"attributes\": { \"color\": \"blue\" },\n  \"is_active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/products/"
+          }
+        },
+        {
+          "name": "Get Product",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/products/{{productSlug}}/" }
+        },
+        {
+          "name": "Update Product",
+          "request": {
+            "method": "PUT",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Updated Product\",\n  \"description\": \"Updated description\",\n  \"price\": \"34.99\",\n  \"stock\": 15,\n  \"type\": \"general\",\n  \"attributes\": {},\n  \"is_active\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/products/{{productSlug}}/"
+          }
+        },
+        {
+          "name": "Delete Product",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/products/{{productSlug}}/" }
+        }
+      ]
+    },
+    {
+      "name": "Banners",
+      "item": [
+        {
+          "name": "List Banners",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/banners/" }
+        },
+        {
+          "name": "Create Banner",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Homepage Banner", "type": "text" },
+                { "key": "altText", "value": "Homepage promotion", "type": "text" },
+                { "key": "imageUrl", "type": "file", "src": "" },
+                { "key": "url", "value": "https://example.com", "type": "text" },
+                { "key": "is_active", "value": "true", "type": "text" },
+                { "key": "starts_at", "value": "2026-01-01T00:00:00Z", "type": "text" },
+                { "key": "ends_at", "value": "2026-12-31T23:59:59Z", "type": "text" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/banners/"
+          }
+        },
+        {
+          "name": "Get Banner",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/banners/{{bannerId}}/" }
+        },
+        {
+          "name": "Update Banner",
+          "request": {
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Updated Homepage Banner", "type": "text" },
+                { "key": "is_active", "value": "true", "type": "text" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/banners/{{bannerId}}/"
+          }
+        },
+        {
+          "name": "Delete Banner",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/banners/{{bannerId}}/" }
+        }
+      ]
+    },
+    {
+      "name": "Event Banners",
+      "item": [
+        {
+          "name": "List Event Banners",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/event-banners/" }
+        },
+        {
+          "name": "Create Event Banner",
+          "request": {
+            "method": "POST",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Holiday Sale", "type": "text" },
+                { "key": "altText", "value": "Holiday sale promotion", "type": "text" },
+                { "key": "imageUrl", "type": "file", "src": "" },
+                { "key": "url", "value": "https://example.com/sale", "type": "text" },
+                { "key": "description", "value": "Seasonal discounts", "type": "text" },
+                { "key": "starts_at", "value": "2026-11-01T00:00:00Z", "type": "text" },
+                { "key": "ends_at", "value": "2026-12-31T23:59:59Z", "type": "text" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/event-banners/"
+          }
+        },
+        {
+          "name": "Get Event Banner",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/event-banners/{{eventBannerId}}/" }
+        },
+        {
+          "name": "Update Event Banner",
+          "request": {
+            "method": "PATCH",
+            "body": {
+              "mode": "formdata",
+              "formdata": [
+                { "key": "title", "value": "Updated Holiday Sale", "type": "text" },
+                { "key": "description", "value": "Updated seasonal discounts", "type": "text" }
+              ]
+            },
+            "url": "{{baseUrl}}/api/event-banners/{{eventBannerId}}/"
+          }
+        },
+        {
+          "name": "Delete Event Banner",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/event-banners/{{eventBannerId}}/" }
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "item": [
+        {
+          "name": "List My Orders",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/orders/" }
+        },
+        {
+          "name": "Create Order",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"shipping_address\": \"123 Main Street, City, Country\",\n  \"items\": [\n    { \"product_id\": 1, \"quantity\": 2 }\n  ]\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/orders/"
+          }
+        },
+        {
+          "name": "Get Order",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/orders/{{orderId}}/" }
+        },
+        {
+          "name": "Update Order (Admin/Staff)",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"status\": \"confirmed\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/orders/{{orderId}}/"
+          }
+        },
+        {
+          "name": "Delete Order (Admin/Staff)",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/orders/{{orderId}}/" }
+        }
+      ]
+    },
+    {
+      "name": "Cart Items",
+      "item": [
+        {
+          "name": "List Cart Items",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/u/cart-items/" }
+        },
+        {
+          "name": "Add Cart Item",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product\": {{productId}},\n  \"quantity\": 1\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/u/cart-items/"
+          }
+        },
+        {
+          "name": "Get Cart Item",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/u/cart-items/{{cartItemId}}/" }
+        },
+        {
+          "name": "Update Cart Item",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"quantity\": 2\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/u/cart-items/{{cartItemId}}/"
+          }
+        },
+        {
+          "name": "Delete Cart Item",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/u/cart-items/{{cartItemId}}/" }
+        }
+      ]
+    },
+    {
+      "name": "Wish List",
+      "item": [
+        {
+          "name": "List Wish List Items",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/u/wish-list/" }
+        },
+        {
+          "name": "Add Wish List Item",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product\": {{productId}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/u/wish-list/"
+          }
+        },
+        {
+          "name": "Get Wish List Item",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/u/wish-list/{{wishListItemId}}/" }
+        },
+        {
+          "name": "Update Wish List Item",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product\": {{productId}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/u/wish-list/{{wishListItemId}}/"
+          }
+        },
+        {
+          "name": "Delete Wish List Item",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/u/wish-list/{{wishListItemId}}/" }
+        }
+      ]
+    }
+  ]
+}

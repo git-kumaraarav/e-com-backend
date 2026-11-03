@@ -8,6 +8,7 @@ from rest_framework.response import Response
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
+from rest_framework.permissions import IsAuthenticated, AllowAny     
 
 from users.models import User
 
@@ -82,8 +83,8 @@ class OAuthView(generics.GenericAPIView):
 
         return Response(
             {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
+                "accessToken": str(refresh.access_token),
+                "refreshToken": str(refresh),
                 "expires_at": refresh.access_token.payload.get("exp"),
                 "user": {
                     "id": user.id,
@@ -114,13 +115,11 @@ class LoginView(TokenObtainPairView):
             )
 
         user = serializer.user 
-        print(user)
         refresh = RefreshToken.for_user(user)
-        print("refresh", refresh)
         return Response(
             {
-                "access": str(refresh.access_token),
-                "refresh": str(refresh),
+                "accessToken": str(refresh.access_token),
+                "refreshToken": str(refresh),
                 "expires_at": refresh.access_token.payload.get("exp"),
                 "user": {
                     "id": user.id,
@@ -130,6 +129,42 @@ class LoginView(TokenObtainPairView):
             }
         )
 
+class TokenRefreshView(TokenObtainPairView):
+    serializer_class = TokenObtainPairSerializer
+    permission_classes = (AllowAny, )
+
+    def post(self, request: Request, *args, **kwargs) -> Response:
+        refresh_token = request.data.get("refreshToken")
+        
+        if not refresh_token:
+            return Response(
+                {"error": "Refresh token is required"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+        try:
+            refresh = RefreshToken(refresh_token)
+
+            ## get the user  and blacklist the old refresh token
+            loggedin_user = User.objects.get(id=refresh.payload.get("user_id"))
+            refresh_user_token = RefreshToken.for_user(loggedin_user)
+
+            # new tokens
+            refresh_token = str(refresh_user_token)
+            access_token = str(refresh_user_token.access_token)
+            expires_at = refresh_user_token.access_token.payload.get("exp")
+        except Exception as e:
+            return Response(
+                {"error": f"Invalid refresh token {e}"}, status=status.HTTP_401_UNAUTHORIZED
+            )
+
+        return Response(
+            {
+                "accessToken": access_token,
+                "refreshToken": str(refresh_token),
+                "expires_at": expires_at,
+            }
+        )
 
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserProfileSerializer
