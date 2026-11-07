@@ -29,6 +29,9 @@ from store.views import (
     CarouselBannerViewSet,
     EventSaleBannerViewSet,
     WishListViewset,
+    SearchViewSet,
+    NewlyLaunched,
+    InstagramFeedViewSet,
 )
 from users.views import (
     LoginView,
@@ -43,8 +46,11 @@ router.register("products", ProductViewSet, basename="product")
 router.register("banners", CarouselBannerViewSet, basename="banner")
 router.register("event-banners", EventSaleBannerViewSet, basename="event-banner")
 router.register("orders", OrderViewSet, basename="order")
+router.register("search", SearchViewSet, basename="search")
+router.register("newly-launched", NewlyLaunched, basename="newly-launched")
 router.register("u/cart-items", CartViewSet, basename="cart-item")
 router.register("u/wish-list", WishListViewset, basename="wish-list")
+router.register("instagram-feed", InstagramFeedViewSet, basename="instagram-feed")
 
 urlpatterns = [
     path("admin/", admin.site.urls),

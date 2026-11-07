@@ -3,10 +3,19 @@ from django.utils import timezone
 from rest_framework import permissions, viewsets
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.pagination import CursorPagination
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
-from .models import CartItem, Order, Product, CarouselBanner, WishList, EventSaleBanner
+from .models import (
+    CartItem,
+    Order,
+    Product,
+    CarouselBanner,
+    WishList,
+    EventSaleBanner,
+    InstagramPost,
+)
 from .serializers import (
     OrderCreateSerializer,
     OrderSerializer,
@@ -16,6 +25,7 @@ from .serializers import (
     ReviewSerializer,
     WishListSerializer,
     EventSaleBannerSerializer,
+    InstagramPostSerializer,
 )
 from .permissions import (
     IsAdminOrReadOnly,
@@ -27,6 +37,7 @@ class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = (IsAdminOrReadOnly,)
     lookup_field = "slug"
+    pagination_class = CursorPagination
 
     def get_queryset(self) -> QuerySet[Product]:  # type: ignore
         queryset = Product.objects.all()
@@ -49,6 +60,9 @@ class CarouselBannerViewSet(viewsets.ModelViewSet):
 
 
 class OrderViewSet(viewsets.ModelViewSet):
+
+    pagination_class = CursorPagination
+
     def get_permission_classes(self) -> list[permissions.BasePermission]:  # type: ignore
         if self.action in ["create", "list", "retrieve"]:
             return [permissions.IsAuthenticated()]
@@ -76,6 +90,7 @@ class OrderViewSet(viewsets.ModelViewSet):
 
 
 class CartViewSet(viewsets.ModelViewSet):
+    pagination_class = CursorPagination
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = CartItemSerializer
 
@@ -86,6 +101,7 @@ class CartViewSet(viewsets.ModelViewSet):
 class WishListViewset(viewsets.ModelViewSet):
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = WishListSerializer
+    pagination_class = CursorPagination
 
     def get_queryset(self) -> QuerySet[WishList]:  # type: ignore
         return WishList.objects.filter(user=self.request.user).select_related("product")
@@ -105,8 +121,18 @@ class EventSaleBannerViewSet(viewsets.ModelViewSet):
         return queryset
 
 
+class InstagramFeedViewSet(viewsets.ReadOnlyModelViewSet):
+    permission_classes = (permissions.AllowAny,)
+    serializer_class = InstagramPostSerializer
+
+    def get_queryset(self) -> QuerySet[InstagramPost]:  # type: ignore
+        queryset = InstagramPost.objects.order_by("-timestamp")
+        return queryset[:9] if self.action == "list" else queryset
+
+
 class SearchViewSet(viewsets.ViewSet):
     permission_classes = (permissions.AllowAny,)
+    pagination_class = CursorPagination
 
     def list(self, request: Request) -> Response:
         query = request.query_params.get("q", "")
@@ -116,3 +142,13 @@ class SearchViewSet(viewsets.ViewSet):
         serializer = ProductSerializer(products, many=True)
         return Response(serializer.data)
 
+
+class NewlyLaunched(viewsets.ViewSet): 
+    
+    permission_classes = (permissions.AllowAny,)
+    pagination_class = CursorPagination 
+
+    def list(self, request: Request) -> Response:
+        products = Product.objects.filter(is_active=True).order_by("-created_at")
+        serializer = ProductSerializer(products, many=True)
+        return Response(serializer.data)

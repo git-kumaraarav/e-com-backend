@@ -9,7 +9,8 @@ from .models import (
     WishList, 
     Order, 
     Review,
-    EventSaleBanner
+    EventSaleBanner,
+    InstagramPost,
 )
 from .services import create_order
 
@@ -119,3 +120,9 @@ class EventSaleBannerSerializer(serializers.ModelSerializer):
         model = EventSaleBanner
         fields = ("id", "title", "imageUrl", "url", "altText", "description", "starts_at", "ends_at")
         read_only_fields = ("id",)
+
+
+class InstagramPostSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = InstagramPost
+        fields = "__all__"

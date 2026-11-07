@@ -414,6 +414,19 @@
           "request": { "method": "DELETE", "url": "{{baseUrl}}/api/u/wish-list/{{wishListItemId}}/" }
         }
       ]
+    },
+    {
+      "name": "Instagram",
+      "item": [
+        {
+          "name": "List Cached Instagram Posts",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/instagram-feed/"
+          }
+        }
+      ]
     }
   ]
 }

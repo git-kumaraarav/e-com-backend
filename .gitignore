@@ -1,6 +1,7 @@
 **/__pycache__/*
 **/*.pyc
 **/migrations/*
+!store/migrations/0011_instagrampost.py
 **/*.pyo
 **/*.pyd
 **/*.pyc
