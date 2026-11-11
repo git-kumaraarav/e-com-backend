@@ -9,8 +9,19 @@ from .models import (
     WishList,
     CartItem,
     Review,
+    SizeVariant,
 )
 
 admin.site.register(
-    (Product, CarouselBanner, Order, OrderItem, WishList, CartItem, Review, EventSaleBanner)
+    (
+        Product,
+        CarouselBanner,
+        Order,
+        OrderItem,
+        WishList,
+        CartItem,
+        Review,
+        EventSaleBanner,
+        SizeVariant,
+    )
 )

@@ -1,5 +1,5 @@
 from decimal import Decimal
-import time 
+import time
 from os import name
 from django.db import models
 from django.conf import settings
@@ -16,6 +16,13 @@ class Category(models.Model):
     class Meta:
         unique_together = ("slug", "name")
 
+class SizeVariant(models.Model):
+    stock = models.PositiveIntegerField(default=0)
+    size = models.CharField(max_length=50)
+    price = models.DecimalField(max_digits=10, decimal_places=2)
+
+    def __str__(self) -> str:
+        return f"{self.size} - ${self.price}"
 
 class Product(models.Model):
     def slugify_name(name: str) -> str:
@@ -24,10 +31,8 @@ class Product(models.Model):
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True, blank=True, null=True)
     description = models.TextField(blank=True)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
-    stock = models.PositiveIntegerField(default=0)
     image = models.ImageField(upload_to="products/", blank=True, null=True)
-    type = models.CharField(max_length=50, default="general")
+    size_variants = models.ManyToManyField(SizeVariant, related_name="products", blank=True)
     attributes = models.JSONField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -35,7 +40,7 @@ class Product(models.Model):
 
     def save(self, *args, **kwargs) -> None:
         if not self.slug:
-            self.slug=  slugify(self.name) + "-" + str(int(time.time())) 
+            self.slug = slugify(self.name) + "-" + str(int(time.time()))
         super().save(*args, **kwargs)
 
     class Meta:
@@ -43,8 +48,6 @@ class Product(models.Model):
 
     def __str__(self) -> str:
         return self.name
-
-
 
 class CarouselBanner(models.Model):
     title = models.CharField(max_length=200)
@@ -113,6 +116,9 @@ class CartItem(models.Model):
     )
     quantity = models.PositiveIntegerField(default=1)
 
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
+
     class Meta:
         unique_together = ("user", "product")
 
@@ -127,7 +133,6 @@ class WishList(models.Model):
         Product, on_delete=models.PROTECT, related_name="wishlist_items"
     )
     added_at = models.DateTimeField(auto_now_add=True)
-
 
 class Review(models.Model):
     user = models.ForeignKey(
@@ -171,9 +176,6 @@ class InstagramPost(models.Model):
     thumbnail_url = models.URLField(max_length=1000, blank=True, null=True)
     permalink = models.URLField(max_length=1000)
     timestamp = models.DateTimeField()
-
-    class Meta:
-        ordering = ("-timestamp",)
 
     def __str__(self) -> str:
         return f"Instagram post {self.insta_id}"

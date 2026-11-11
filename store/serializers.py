@@ -6,6 +6,7 @@ from .models import (
     Product, 
     OrderItem, 
     CartItem,
+    SizeVariant,
     WishList, 
     Order, 
     Review,
@@ -28,7 +29,11 @@ class CartItemSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ("id",)
 
-
+class SizeVariantSerializer(serializers.Serializer):
+    class Meta:
+        model = SizeVariant
+        fields = "__all__"
+        
 class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
@@ -39,6 +44,7 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
+        depth = 1
         read_only_fields = ("id", "created_at", "updated_at", 'slug')
 
 

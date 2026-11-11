@@ -32,12 +32,17 @@ from .permissions import (
     IsAdminOrStaff,
 )
 
+class CursorPaginationExt(CursorPagination):
+    page_size = 10
+    ordering = "-created_at"
+
+
 
 class ProductViewSet(viewsets.ModelViewSet):
     serializer_class = ProductSerializer
     permission_classes = (IsAdminOrReadOnly,)
     lookup_field = "slug"
-    pagination_class = CursorPagination
+    pagination_class = CursorPaginationExt
 
     def get_queryset(self) -> QuerySet[Product]:  # type: ignore
         queryset = Product.objects.all()
@@ -61,7 +66,7 @@ class CarouselBannerViewSet(viewsets.ModelViewSet):
 
 class OrderViewSet(viewsets.ModelViewSet):
 
-    pagination_class = CursorPagination
+    pagination_class = CursorPaginationExt
 
     def get_permission_classes(self) -> list[permissions.BasePermission]:  # type: ignore
         if self.action in ["create", "list", "retrieve"]:
@@ -90,9 +95,10 @@ class OrderViewSet(viewsets.ModelViewSet):
 
 
 class CartViewSet(viewsets.ModelViewSet):
-    pagination_class = CursorPagination
+    pagination_class = CursorPaginationExt
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = CartItemSerializer
+    ordering = "-added_at"
 
     def get_queryset(self) -> QuerySet[CartItem]:  # type: ignore
         return CartItem.objects.filter(user=self.request.user).select_related("product")
@@ -101,7 +107,7 @@ class CartViewSet(viewsets.ModelViewSet):
 class WishListViewset(viewsets.ModelViewSet):
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = WishListSerializer
-    pagination_class = CursorPagination
+    pagination_class = CursorPaginationExt
 
     def get_queryset(self) -> QuerySet[WishList]:  # type: ignore
         return WishList.objects.filter(user=self.request.user).select_related("product")
@@ -130,25 +136,29 @@ class InstagramFeedViewSet(viewsets.ReadOnlyModelViewSet):
         return queryset[:9] if self.action == "list" else queryset
 
 
-class SearchViewSet(viewsets.ViewSet):
+class SearchViewSet(viewsets.GenericViewSet):
     permission_classes = (permissions.AllowAny,)
-    pagination_class = CursorPagination
+    pagination_class = CursorPaginationExt
+    ordering = "-created_at"
 
     def list(self, request: Request) -> Response:
         query = request.query_params.get("q", "")
         products = Product.objects.filter(
             Q(name__icontains=query) | Q(description__icontains=query), is_active=True
         )
-        serializer = ProductSerializer(products, many=True)
-        return Response(serializer.data)
+        page = self.paginate_queryset(products)
+        serializer = ProductSerializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
 
 
-class NewlyLaunched(viewsets.ViewSet): 
+class NewlyLaunched(viewsets.GenericViewSet):
     
     permission_classes = (permissions.AllowAny,)
-    pagination_class = CursorPagination 
+    pagination_class = CursorPaginationExt
+    ordering = "-created_at"
 
     def list(self, request: Request) -> Response:
-        products = Product.objects.filter(is_active=True).order_by("-created_at")
-        serializer = ProductSerializer(products, many=True)
-        return Response(serializer.data)
+        products = Product.objects.filter(is_active=True)
+        page = self.paginate_queryset(products)
+        serializer = ProductSerializer(page, many=True)
+        return self.get_paginated_response(serializer.data)
