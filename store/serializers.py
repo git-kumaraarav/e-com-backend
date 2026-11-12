@@ -46,14 +46,35 @@ class ReviewSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ("id", "created_at")
 
+class ProductVariantSerializer(serializers.ModelSerializer):
+    url = serializers.HyperlinkedIdentityField(view_name="product-detail", lookup_field="slug")
+    class Meta:
+        model = Product
+        fields = ("id", "name", "slug", "related_variants", "url")
+        read_only_fields = "__all__"
 
 class ProductSerializer(serializers.ModelSerializer):
+    related_variants = ProductVariantSerializer(many=True, read_only=True)
+    size_variants = SizeVariantSerializer(many=True, read_only=True)
+
+    related_variant_ids = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.all(),
+        source="related_variants",
+        many=True,
+        write_only=True,
+        required=False,
+    )
     class Meta:
         model = Product
         fields = "__all__"
         depth = 1
         read_only_fields = ("id", "created_at", "updated_at", "slug")
 
+class SizeVariantSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = SizeVariant
+        fields = "__all__"
+        read_only_fields = ("id", "created_at", "updated_at")
 
 class CarouselBannerSerializer(serializers.ModelSerializer):
     class Meta:

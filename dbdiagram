@@ -1,0 +1,184 @@
+// Current application schema for the Django e-commerce backend.
+
+Table users_user {
+  id integer [pk, increment]
+  password varchar(128) [not null]
+  last_login datetime
+  email varchar(254) [not null, unique]
+  is_staff boolean [not null, default: false]
+  is_active boolean [not null, default: true]
+  date_joined datetime [not null]
+  date_modified datetime [not null]
+  name varchar(255) [not null]
+  is_superuser boolean [not null, default: false]
+}
+
+Table users_address {
+  id integer [pk, increment]
+  user_id integer [not null]
+  street varchar(255) [not null]
+  city varchar(100) [not null]
+  state varchar(100) [not null]
+  postal_code varchar(20) [not null]
+  country varchar(100) [not null]
+  is_default boolean [not null, default: false]
+  date_created datetime [not null]
+  date_modified datetime [not null]
+}
+
+Table users_userprofile {
+  id integer [pk, increment]
+  user_id integer [not null, unique]
+  phone_number varchar(20) [not null, default: '']
+  date_of_birth date
+  date_created datetime [not null]
+  date_modified datetime [not null]
+}
+
+Table store_category {
+  id integer [pk, increment]
+  name varchar(100) [not null]
+  slug varchar(50) [not null, unique]
+  parent_category_id integer [not null]
+
+  Indexes {
+    (slug, name) [unique]
+  }
+}
+
+Table store_product {
+  id integer [pk, increment]
+  name varchar(200) [not null]
+  slug varchar(50) [unique]
+  description text [not null]
+  image varchar(100) [not null]
+  attributes json
+  is_active boolean [not null, default: true]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+}
+
+Table store_product_related_variants {
+  id integer [pk, increment]
+  from_product_id integer [not null]
+  to_product_id integer [not null]
+
+  Indexes {
+    (from_product_id, to_product_id) [unique]
+  }
+}
+
+Table store_sizevariant {
+  id integer [pk, increment]
+  products_id integer [not null]
+  stock integer [not null, default: 0]
+  size varchar(50) [not null]
+  price decimal(10,2) [not null]
+
+  Indexes {
+    (products_id, size) [unique]
+  }
+}
+
+Table store_carouselbanner {
+  id integer [pk, increment]
+  title varchar(200) [not null]
+  altText varchar(300) [not null, default: '']
+  imageUrl varchar(100) [not null]
+  url varchar(200) [not null, default: '']
+  is_active boolean [not null, default: true]
+  starts_at datetime [not null]
+  ends_at datetime [not null]
+  created_at datetime [not null]
+}
+
+Table store_eventsalebanner {
+  id integer [pk, increment]
+  title varchar(200) [not null]
+  altText varchar(300) [not null, default: '']
+  imageUrl varchar(100) [not null]
+  url varchar(200) [not null, default: '']
+  description text [not null, default: '']
+  is_active boolean [not null, default: true]
+  starts_at datetime [not null]
+  ends_at datetime [not null]
+  created_at datetime [not null]
+}
+
+Table store_order {
+  id integer [pk, increment]
+  user_id integer [not null]
+  status varchar(20) [not null, default: 'pending']
+  shipping_address text [not null]
+  total decimal(10,2) [not null, default: 0.00]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+}
+
+Table store_orderitem {
+  id integer [pk, increment]
+  order_id integer [not null]
+  product_id integer [not null]
+  quantity integer [not null]
+  unit_price decimal(10,2) [not null]
+}
+
+Table store_cartitem {
+  id integer [pk, increment]
+  user_id integer [not null]
+  product_id integer [not null]
+  quantity integer [not null, default: 1]
+  created_at datetime [not null]
+  updated_at datetime [not null]
+
+  Indexes {
+    (user_id, product_id) [unique]
+  }
+}
+
+Table store_wishlist {
+  id integer [pk, increment]
+  user_id integer [not null]
+  product_id integer [not null]
+  added_at datetime [not null]
+}
+
+Table store_review {
+  id integer [pk, increment]
+  user_id integer [not null]
+  product_id integer [not null]
+  rating integer [not null]
+  comment text [not null]
+  created_at datetime [not null]
+
+  Indexes {
+    (user_id, product_id) [unique]
+  }
+}
+
+Table store_instagrampost {
+  id integer [pk, increment]
+  insta_id varchar(255) [not null, unique]
+  caption text
+  media_type varchar(50) [not null]
+  media_url varchar(1000) [not null]
+  thumbnail_url varchar(1000)
+  permalink varchar(1000) [not null]
+  timestamp datetime [not null]
+}
+
+Ref: users_address.user_id > users_user.id
+Ref: users_userprofile.user_id - users_user.id
+Ref: store_category.parent_category_id > store_category.id
+Ref: store_sizevariant.products_id > store_product.id
+Ref: store_product_related_variants.from_product_id > store_product.id
+Ref: store_product_related_variants.to_product_id > store_product.id
+Ref: store_order.user_id > users_user.id
+Ref: store_orderitem.order_id > store_order.id
+Ref: store_orderitem.product_id > store_product.id
+Ref: store_cartitem.user_id > users_user.id
+Ref: store_cartitem.product_id > store_product.id
+Ref: store_wishlist.user_id > users_user.id
+Ref: store_wishlist.product_id > store_product.id
+Ref: store_review.user_id > users_user.id
+Ref: store_review.product_id > store_product.id

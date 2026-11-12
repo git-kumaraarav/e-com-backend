@@ -16,23 +16,35 @@ class Category(models.Model):
     class Meta:
         unique_together = ("slug", "name")
 
+
 class SizeVariant(models.Model):
+    products = models.ForeignKey(
+        "Product", related_name="size_variants", on_delete=models.CASCADE
+    )
     stock = models.PositiveIntegerField(default=0)
     size = models.CharField(max_length=50)
     price = models.DecimalField(max_digits=10, decimal_places=2)
 
+    class Meta:
+        unique_together = ("products", "size")
+
     def __str__(self) -> str:
         return f"{self.size} - ${self.price}"
+
+
 
 class Product(models.Model):
     def slugify_name(name: str) -> str:
         return slugify(name) + "-" + str(int(time.time()))
 
+    related_variants = models.ManyToManyField(
+        "self",
+        related_name="variant",
+    )
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True, blank=True, null=True)
     description = models.TextField(blank=True)
     image = models.ImageField(upload_to="products/", blank=True, null=True)
-    size_variants = models.ManyToManyField(SizeVariant, related_name="products", blank=True)
     attributes = models.JSONField(blank=True, null=True)
     is_active = models.BooleanField(default=True)
     created_at = models.DateTimeField(auto_now_add=True)
@@ -48,6 +60,7 @@ class Product(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
 
 class CarouselBanner(models.Model):
     title = models.CharField(max_length=200)
@@ -133,6 +146,7 @@ class WishList(models.Model):
         Product, on_delete=models.PROTECT, related_name="wishlist_items"
     )
     added_at = models.DateTimeField(auto_now_add=True)
+
 
 class Review(models.Model):
     user = models.ForeignKey(

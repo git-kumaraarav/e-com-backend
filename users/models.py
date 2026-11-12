@@ -56,8 +56,6 @@ class Address(models.Model):
     postal_code = models.CharField(max_length=20)
     country = models.CharField(max_length=100)
     is_default = models.BooleanField(default=False)
-    date_created = models.DateTimeField(auto_now_add=True)
-    date_modified = models.DateTimeField(auto_now=True)
 
     class Meta:
         ordering = ("-is_default", "id")
@@ -72,8 +70,6 @@ class UserProfile(models.Model):
     )
     phone_number = models.CharField(max_length=20, blank=True)
     date_of_birth = models.DateField(null=True, blank=True)
-    date_created = models.DateTimeField(auto_now_add=True)
-    date_modified = models.DateTimeField(auto_now=True)
 
     def __str__(self) -> str:
         return f"Profile of {self.user.username}"

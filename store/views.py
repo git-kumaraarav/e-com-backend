@@ -12,6 +12,7 @@ from .models import (
     InstagramPost,
     Order,
     Product,
+    SizeVariant,
     WishList,
 )
 from .permissions import (
@@ -26,6 +27,7 @@ from .serializers import (
     OrderCreateSerializer,
     OrderSerializer,
     ProductSerializer,
+    SizeVariantSerializer,
     WishListSerializer,
 )
 
@@ -34,6 +36,13 @@ class CursorPaginationExt(CursorPagination):
     page_size = 10
     ordering = "-created_at"
 
+    def get_ordering(
+        self, request: Request, queryset: QuerySet, view: object = None
+    ) -> tuple[str, ...]:
+        ordering = getattr(view, "ordering", None) or self.ordering
+        if isinstance(ordering, str):
+            return (ordering,)
+        return tuple(ordering)
 
 
 class ProductViewSet(viewsets.ModelViewSet):
@@ -56,14 +65,11 @@ class CarouselBannerViewSet(viewsets.ModelViewSet):
     def get_queryset(self) -> QuerySet[CarouselBanner]:  # type: ignore
         queryset = CarouselBanner.objects.all()
         if not self.request.user.is_staff:
-            queryset = queryset.filter(
-                is_active=True
-            )
+            queryset = queryset.filter(is_active=True)
         return queryset
 
 
 class OrderViewSet(viewsets.ModelViewSet):
-
     pagination_class = CursorPaginationExt
 
     def get_permission_classes(self) -> list[permissions.BasePermission]:  # type: ignore
@@ -96,7 +102,6 @@ class CartViewSet(viewsets.ModelViewSet):
     pagination_class = CursorPaginationExt
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = CartItemSerializer
-    ordering = "-added_at"
 
     def get_queryset(self) -> QuerySet[CartItem]:  # type: ignore
         return CartItem.objects.filter(user=self.request.user).select_related("product")
@@ -106,6 +111,7 @@ class WishListViewset(viewsets.ModelViewSet):
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = WishListSerializer
     pagination_class = CursorPaginationExt
+    ordering = "-added_at"
 
     def get_queryset(self) -> QuerySet[WishList]:  # type: ignore
         return WishList.objects.filter(user=self.request.user).select_related("product")
@@ -119,10 +125,17 @@ class EventSaleBannerViewSet(viewsets.ModelViewSet):
         queryset = EventSaleBanner.objects.all()
         if not self.request.user.is_staff:
             now = timezone.now()
-            queryset = queryset.filter(
-                is_active=True 
-            )
+            queryset = queryset.filter(is_active=True)
         return queryset
+
+
+class SizeVariantViewSet(viewsets.ModelViewSet):
+    serializer_class = SizeVariantSerializer
+    permission_classes = (IsAdminOrReadOnly,)
+
+    def get_queryset(self, request: Request) -> QuerySet[SizeVariant]:  # type: ignore
+        
+        return SizeVariant.objects.filter(products__is_active=True) 
 
 
 class InstagramFeedViewSet(viewsets.ReadOnlyModelViewSet):
@@ -150,7 +163,6 @@ class SearchViewSet(viewsets.GenericViewSet):
 
 
 class NewlyLaunched(viewsets.GenericViewSet):
-    
     permission_classes = (permissions.AllowAny,)
     pagination_class = CursorPaginationExt
     ordering = "-created_at"

@@ -4,7 +4,7 @@ from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
-from .models import CartItem, Product, SizeVariant
+from .models import CartItem, Product, SizeVariant, WishList
 
 User = get_user_model()
 
@@ -53,6 +53,15 @@ class StoreApiTests(APITestCase):
         self.assertEqual(response.data['product'], self.product.pk)
         self.assertEqual(response.data['quantity'], 2)
         self.assertTrue(CartItem.objects.filter(user=self.user, product=self.product).exists())
+
+    def test_customer_can_list_wish_list(self) -> None:
+        self.authenticate()
+        WishList.objects.create(user=self.user, product=self.product)
+
+        response = self.client.get(reverse('wish-list-list'))
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data['results'][0]['product'], self.product.pk)
 
     def test_customer_cannot_manage_products(self) -> None:
         self.authenticate()
