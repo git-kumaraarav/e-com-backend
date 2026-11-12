@@ -34,10 +34,10 @@ class CartItemSerializer(serializers.ModelSerializer):
         read_only_fields = ("id",)
 
 
-class SizeVariantSerializer(serializers.Serializer):
+class SizeVariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = SizeVariant
-        fields = "__all__"
+        fields = ("stock", "size", "price")
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -51,7 +51,7 @@ class ProductVariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = ("id", "name", "slug", "related_variants", "url")
-        read_only_fields = "__all__"
+        read_only_fields = ("id", "name", "slug", "related_variants", "url")
 
 class ProductSerializer(serializers.ModelSerializer):
     related_variants = ProductVariantSerializer(many=True, read_only=True)
@@ -67,14 +67,8 @@ class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
-        depth = 1
         read_only_fields = ("id", "created_at", "updated_at", "slug")
 
-class SizeVariantSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = SizeVariant
-        fields = "__all__"
-        read_only_fields = ("id", "created_at", "updated_at")
 
 class CarouselBannerSerializer(serializers.ModelSerializer):
     class Meta:

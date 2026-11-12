@@ -4,6 +4,7 @@ from decimal import Decimal
 from django.conf import settings
 from django.db import models
 from django.utils.text import slugify
+from django.db import transaction
 
 
 class Category(models.Model):
@@ -21,9 +22,9 @@ class SizeVariant(models.Model):
     products = models.ForeignKey(
         "Product", related_name="size_variants", on_delete=models.CASCADE
     )
-    stock = models.PositiveIntegerField(default=0)
-    size = models.CharField(max_length=50)
-    price = models.DecimalField(max_digits=10, decimal_places=2)
+    stock = models.PositiveIntegerField(default=1)
+    size = models.CharField(max_length=50, default="Free Size")
+    price = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("99999999.00"))
 
     class Meta:
         unique_together = ("products", "size")
@@ -51,9 +52,19 @@ class Product(models.Model):
     updated_at = models.DateTimeField(auto_now=True)
 
     def save(self, *args, **kwargs) -> None:
+        is_new = self.pk is None
         if not self.slug:
-            self.slug = slugify(self.name) + "-" + str(int(time.time()))
-        super().save(*args, **kwargs)
+            self.slug = self.slugify_name(self.name)
+
+        with transaction.atomic():
+            super().save(*args, **kwargs)
+            if is_new:
+                transaction.on_commit(self._ensure_default_variant)
+    
+    def _ensure_default_variant(self) -> None:
+        if not self.size_variants.exists():
+            SizeVariant.objects.create(products=self) 
+
 
     class Meta:
         ordering = ("-created_at",)
