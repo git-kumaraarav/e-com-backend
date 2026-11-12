@@ -1,8 +1,8 @@
-from decimal import Decimal
 import time
-from os import name
-from django.db import models
+from decimal import Decimal
+
 from django.conf import settings
+from django.db import models
 from django.utils.text import slugify
 
 

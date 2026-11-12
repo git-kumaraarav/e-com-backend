@@ -1,26 +1,36 @@
 from decimal import Decimal
 
-from django.contrib.auth.models import User
+from django.contrib.auth import get_user_model
 from django.urls import reverse
 from rest_framework.test import APITestCase
 
-from .models import Order, Product
+from .models import CartItem, Product, SizeVariant
+
+User = get_user_model()
 
 
 class StoreApiTests(APITestCase):
     def setUp(self) -> None:
-        self.user = User.objects.create_user(username='customer', password='strong-pass-123')
+        self.user = User.objects.create_user(
+            email='customer@example.com',
+            name='Customer',
+            password='strong-pass-123',
+        )
         self.product = Product.objects.create(
             name='Black dress',
             slug='black-dress',
+        )
+        self.size_variant = SizeVariant.objects.create(
+            size='M',
             price=Decimal('49.99'),
             stock=3,
         )
+        self.product.size_variants.add(self.size_variant)
 
     def authenticate(self) -> None:
         response = self.client.post(
             reverse('token_obtain_pair'),
-            {'username': 'customer', 'password': 'strong-pass-123'},
+            {'email': 'customer@example.com', 'password': 'strong-pass-123'},
         )
         self.assertEqual(response.status_code, 200)
         self.client.credentials(HTTP_AUTHORIZATION=f"Bearer {response.data['access']}")
@@ -29,30 +39,26 @@ class StoreApiTests(APITestCase):
         response = self.client.get(reverse('product-list'))
 
         self.assertEqual(response.status_code, 200)
-        self.assertEqual(response.data[0]['slug'], 'black-dress')
+        self.assertEqual(response.data['results'][0]['slug'], 'black-dress')
 
-    def test_customer_can_create_order_and_stock_is_reserved(self) -> None:
+    def test_customer_can_add_product_to_cart(self) -> None:
         self.authenticate()
         response = self.client.post(
-            reverse('order-list'),
-            {
-                'shipping_address': '1 Fashion Street',
-                'items': [{'product_id': self.product.pk, 'quantity': 2}],
-            },
+            reverse('cart-item-list'),
+            {'product': self.product.pk, 'quantity': 2},
             format='json',
         )
 
         self.assertEqual(response.status_code, 201)
-        self.assertEqual(response.data['total'], '99.98')
-        self.product.refresh_from_db()
-        self.assertEqual(self.product.stock, 1)
-        self.assertEqual(Order.objects.get().user, self.user)
+        self.assertEqual(response.data['product'], self.product.pk)
+        self.assertEqual(response.data['quantity'], 2)
+        self.assertTrue(CartItem.objects.filter(user=self.user, product=self.product).exists())
 
     def test_customer_cannot_manage_products(self) -> None:
         self.authenticate()
         response = self.client.post(
             reverse('product-list'),
-            {'name': 'New', 'slug': 'new', 'price': '10.00', 'stock': 1},
+            {'name': 'New', 'description': 'A new product'},
             format='json',
         )
 
@@ -61,9 +67,13 @@ class StoreApiTests(APITestCase):
     def test_register_endpoint_creates_user(self) -> None:
         response = self.client.post(
             reverse('register'),
-            {'username': 'new-user', 'email': 'new@example.com', 'password': 'strong-pass-123'},
+            {
+                'name': 'New User',
+                'email': 'new@example.com',
+                'password': 'strong-pass-123',
+            },
             format='json',
         )
 
         self.assertEqual(response.status_code, 201)
-        self.assertTrue(User.objects.filter(username='new-user').exists())
+        self.assertTrue(User.objects.filter(email='new@example.com').exists())

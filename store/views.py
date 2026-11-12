@@ -1,36 +1,34 @@
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from django.utils import timezone
 from rest_framework import permissions, viewsets
+from rest_framework.pagination import CursorPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
-from rest_framework.pagination import CursorPagination
-from django.db.models import Q
-from django.shortcuts import get_object_or_404
 
 from .models import (
-    CartItem,
-    Order,
-    Product,
     CarouselBanner,
-    WishList,
+    CartItem,
     EventSaleBanner,
     InstagramPost,
-)
-from .serializers import (
-    OrderCreateSerializer,
-    OrderSerializer,
-    ProductSerializer,
-    CarouselBannerSerializer,
-    CartItemSerializer,
-    ReviewSerializer,
-    WishListSerializer,
-    EventSaleBannerSerializer,
-    InstagramPostSerializer,
+    Order,
+    Product,
+    WishList,
 )
 from .permissions import (
     IsAdminOrReadOnly,
     IsAdminOrStaff,
 )
+from .serializers import (
+    CarouselBannerSerializer,
+    CartItemSerializer,
+    EventSaleBannerSerializer,
+    InstagramPostSerializer,
+    OrderCreateSerializer,
+    OrderSerializer,
+    ProductSerializer,
+    WishListSerializer,
+)
+
 
 class CursorPaginationExt(CursorPagination):
     page_size = 10

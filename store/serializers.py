@@ -1,51 +1,58 @@
-from django.utils import timezone
 from rest_framework import serializers
+
 from store.models import CartItem
+
 from .models import (
-    CarouselBanner, 
-    Product, 
-    OrderItem, 
-    CartItem,
-    SizeVariant,
-    WishList, 
-    Order, 
-    Review,
+    CarouselBanner,
     EventSaleBanner,
     InstagramPost,
+    Order,
+    OrderItem,
+    Product,
+    Review,
+    SizeVariant,
+    WishList,
 )
 from .services import create_order
 
+
 class WishListSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
     class Meta:
         model = WishList
         fields = "__all__"
         read_only_fields = ("id", "added_at")
 
+
 class CartItemSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
     class Meta:
         model = CartItem
         fields = "__all__"
         read_only_fields = ("id",)
 
+
 class SizeVariantSerializer(serializers.Serializer):
     class Meta:
         model = SizeVariant
         fields = "__all__"
-        
+
+
 class ReviewSerializer(serializers.ModelSerializer):
     class Meta:
         model = Review
         fields = "__all__"
         read_only_fields = ("id", "created_at")
 
+
 class ProductSerializer(serializers.ModelSerializer):
     class Meta:
         model = Product
         fields = "__all__"
         depth = 1
-        read_only_fields = ("id", "created_at", "updated_at", 'slug')
+        read_only_fields = ("id", "created_at", "updated_at", "slug")
 
 
 class CarouselBannerSerializer(serializers.ModelSerializer):
@@ -121,10 +128,20 @@ class OrderCreateSerializer(serializers.ModelSerializer):
             user=self.context["request"].user, items=items, **validated_data
         )
 
+
 class EventSaleBannerSerializer(serializers.ModelSerializer):
     class Meta:
         model = EventSaleBanner
-        fields = ("id", "title", "imageUrl", "url", "altText", "description", "starts_at", "ends_at")
+        fields = (
+            "id",
+            "title",
+            "imageUrl",
+            "url",
+            "altText",
+            "description",
+            "starts_at",
+            "ends_at",
+        )
         read_only_fields = ("id",)
 
 
