@@ -46,12 +46,14 @@ class ReviewSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = ("id", "created_at")
 
+
 class ProductVariantSerializer(serializers.ModelSerializer):
     url = serializers.HyperlinkedIdentityField(view_name="product-detail", lookup_field="slug")
     class Meta:
         model = Product
-        fields = ("id", "name", "slug", "related_variants", "url")
-        read_only_fields = ("id", "name", "slug", "related_variants", "url")
+        fields = ("id", "name", "slug", "url")
+        read_only_fields = ("id", "name", "slug", "url")
+
 
 class ProductSerializer(serializers.ModelSerializer):
     related_variants = ProductVariantSerializer(many=True, read_only=True)

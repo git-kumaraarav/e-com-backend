@@ -1,7 +1,6 @@
 from django.db.models import Q, QuerySet
 from django.utils import timezone
 from rest_framework import permissions, viewsets
-from rest_framework.pagination import CursorPagination
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -15,6 +14,7 @@ from .models import (
     SizeVariant,
     WishList,
 )
+from .pagination import CursorPaginationExt
 from .permissions import (
     IsAdminOrReadOnly,
     IsAdminOrStaff,
@@ -30,19 +30,6 @@ from .serializers import (
     SizeVariantSerializer,
     WishListSerializer,
 )
-
-
-class CursorPaginationExt(CursorPagination):
-    page_size = 10
-    ordering = "-created_at"
-
-    def get_ordering(
-        self, request: Request, queryset: QuerySet, view: object = None
-    ) -> tuple[str, ...]:
-        ordering = getattr(view, "ordering", None) or self.ordering
-        if isinstance(ordering, str):
-            return (ordering,)
-        return tuple(ordering)
 
 
 class ProductViewSet(viewsets.ModelViewSet):
