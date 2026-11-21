@@ -9,5 +9,6 @@
 
 db.sqlite3
 media/*
-.env/ 
+.env 
 prompts.md
+.env/

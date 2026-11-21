@@ -1,10 +1,10 @@
-from django.db import models
+from django.conf import settings
 from django.contrib.auth.models import (
     AbstractBaseUser,
     BaseUserManager,
     PermissionsMixin,
 )
-from django.conf import settings
+from django.db import models
 
 
 class UserManager(BaseUserManager):
@@ -50,12 +50,17 @@ class Address(models.Model):
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="addresses"
     )
+    name = models.CharField(max_length=255)
     street = models.CharField(max_length=255)
     city = models.CharField(max_length=100)
     state = models.CharField(max_length=100)
     postal_code = models.CharField(max_length=20)
     country = models.CharField(max_length=100)
     is_default = models.BooleanField(default=False)
+
+    @property 
+    def get_full_address(self) -> str:
+        return f"{self.street}, {self.city}, {self.state}, {self.postal_code}, {self.country}"
 
     class Meta:
         ordering = ("-is_default", "id")

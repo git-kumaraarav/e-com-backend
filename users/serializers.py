@@ -1,5 +1,6 @@
 from rest_framework import serializers
-from .models import User
+
+from .models import Address, User
 
 
 class UserRegistrationSerializer(serializers.ModelSerializer):
@@ -27,6 +28,11 @@ class UserProfileExtendedSerializer(serializers.ModelSerializer):
         model = UserProfileSerializer
         fields = "__all__"
     
+class AddressSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    class Meta:
+        model = Address  
+        fields = ("__all__")
 
 
 class OAuthSerializer(serializers.Serializer):

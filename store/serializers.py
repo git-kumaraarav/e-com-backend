@@ -1,9 +1,11 @@
 from rest_framework import serializers
 
-from store.models import CartItem
+from users.models import Address
 
 from .models import (
     CarouselBanner,
+    Cart,
+    CartItem,
     EventSaleBanner,
     InstagramPost,
     Order,
@@ -16,22 +18,58 @@ from .models import (
 from .services import create_order
 
 
-class WishListSerializer(serializers.ModelSerializer):
-    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
-
-    class Meta:
-        model = WishList
-        fields = "__all__"
-        read_only_fields = ("id", "added_at")
-
-
 class CartItemSerializer(serializers.ModelSerializer):
-    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
-
     class Meta:
         model = CartItem
-        fields = "__all__"
-        read_only_fields = ("id",)
+        fields = ("id", "product", "quantity")
+
+
+class CartSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    items = CartItemSerializer(many=True, read_only=True)
+    add_item = serializers.PrimaryKeyRelatedField(
+        queryset=Product.objects.filter(is_active=True),
+        write_only=True,
+        required=False,
+    )
+    quantity = serializers.IntegerField(min_value=1, default=1)
+
+    class Meta:
+        model = Cart
+        fields = ("id", "user", "items", "add_item", "quantity")
+        read_only_fields = ("id", "items")
+
+    def create(self, validated_data):
+        product = validated_data.pop("add_item", None)
+        quantity = validated_data.pop("quantity", 1)
+        user = validated_data["user"]
+
+        cart, _ = Cart.objects.get_or_create(user=user)
+        if product:
+            self._upsert_item(cart, product, quantity)
+        return cart
+
+    def update(self, instance, validated_data):
+        product = validated_data.pop("add_item", None)
+        quantity = validated_data.pop("quantity", 1)
+
+        # if quantity is 0, remove the item from the cart
+        if product and quantity == 0:
+            CartItem.objects.filter(cart=instance, product=product).delete()
+
+        if product:
+            self._upsert_item(instance, product, quantity)
+        return instance
+
+    def _upsert_item(self, cart, product, quantity):
+        cart_item, created = CartItem.objects.get_or_create(
+            cart=cart,
+            product=product,
+            defaults={"quantity": quantity},
+        )
+        if not created:
+            cart_item.quantity = quantity
+            cart_item.save()
 
 
 class SizeVariantSerializer(serializers.ModelSerializer):
@@ -48,7 +86,10 @@ class ReviewSerializer(serializers.ModelSerializer):
 
 
 class ProductVariantSerializer(serializers.ModelSerializer):
-    url = serializers.HyperlinkedIdentityField(view_name="product-detail", lookup_field="slug")
+    url = serializers.HyperlinkedIdentityField(
+        view_name="product-detail", lookup_field="slug"
+    )
+
     class Meta:
         model = Product
         fields = ("id", "name", "slug", "url")
@@ -66,6 +107,7 @@ class ProductSerializer(serializers.ModelSerializer):
         write_only=True,
         required=False,
     )
+
     class Meta:
         model = Product
         fields = "__all__"
@@ -89,23 +131,21 @@ class CarouselBannerSerializer(serializers.ModelSerializer):
 
 
 class OrderItemSerializer(serializers.ModelSerializer):
-    product_name = serializers.CharField(source="product.name", read_only=True)
-    subtotal = serializers.DecimalField(max_digits=10, decimal_places=2, read_only=True)
+    order = serializers.PrimaryKeyRelatedField(
+        source="order", queryset=Order.objects.all(), write_only=True
+    )
+
+    variant = serializers.PrimaryKeyRelatedField(
+        source="variant", queryset=SizeVariant.objects.all(), write_only=True
+    )
 
     class Meta:
         model = OrderItem
-        fields = ("product", "product_name", "quantity", "unit_price", "subtotal")
-        read_only_fields = ("unit_price", "subtotal")
+        fields = "__all__"
+        read_only_fields = ("id", "order", "variant", "product_name", "product_size", "unit_price", "quantity", "subtotal")
 
 
-class OrderCreateItemSerializer(serializers.Serializer):
-    product_id = serializers.PrimaryKeyRelatedField(
-        queryset=Product.objects.filter(is_active=True),
-    )
-    quantity = serializers.IntegerField(min_value=1)
-
-
-class OrderSerializer(serializers.ModelSerializer):
+class HistoryOrderSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
     user = serializers.PrimaryKeyRelatedField(read_only=True)
 
@@ -132,15 +172,28 @@ class OrderSerializer(serializers.ModelSerializer):
         )
 
 
-class OrderCreateSerializer(serializers.ModelSerializer):
-    items = OrderCreateItemSerializer(many=True, min_length=1, write_only=True)
+class OrderSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+    address = serializers.PrimaryKeyRelatedField(
+        queryset=Address.objects.all(), write_only=True, required=True
+    )
 
     class Meta:
         model = Order
-        fields = ("shipping_address", "items")
+        fields = "__all__" 
+
+    def validate_address(self, address: Address) -> Address:
+        if address.user != self.context["request"].user:
+            raise serializers.ValidationError(
+                {"address": "Address does not belong to the user."}
+            )
+        return address
 
     def create(self, validated_data: dict[str, object]) -> Order:
         items = validated_data.pop("items")
+        validated_data["shipping_address"] = validated_data.pop(
+            "address"
+        ).get_full_address()
         return create_order(
             user=self.context["request"].user, items=items, **validated_data
         )
@@ -166,3 +219,12 @@ class InstagramPostSerializer(serializers.ModelSerializer):
     class Meta:
         model = InstagramPost
         fields = "__all__"
+
+
+class WishListSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+
+    class Meta:
+        model = WishList
+        fields = "__all__"
+        read_only_fields = ("id", "added_at")

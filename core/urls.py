@@ -17,6 +17,7 @@ from store.views import (
     WishListViewset,
 )
 from users.views import (
+    AddressListView,
     LoginView,
     OAuthView,
     RegisterView,
@@ -34,6 +35,7 @@ router.register("u/wish-list", WishListViewset, basename="wish-list")
 router.register("instagram-feed", InstagramFeedViewSet, basename="instagram-feed")
 router.register("search", SearchViewSet, basename="search")
 router.register("newly-launched", NewlyLaunched, basename="newly-launched")
+router.register("u/addresses", AddressListView, basename="address-list")
 
 urlpatterns = [
     path("admin/", admin.site.urls),

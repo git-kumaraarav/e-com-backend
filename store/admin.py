@@ -7,7 +7,7 @@ from .models import (
     Product,
     CarouselBanner,
     WishList,
-    CartItem,
+    Cart,
     Review,
     SizeVariant,
 )
@@ -19,7 +19,7 @@ admin.site.register(
         Order,
         OrderItem,
         WishList,
-        CartItem,
+        Cart,
         Review,
         EventSaleBanner,
         SizeVariant,

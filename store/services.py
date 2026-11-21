@@ -1,48 +1,57 @@
-from decimal import Decimal
-
 from django.db import transaction
+from django.db.models import F
 from rest_framework.exceptions import ValidationError
+from rest_framework.request import Request
 
-from .models import Order, OrderItem, Product
+from .models import CartItem, Order, OrderItem
+from .serializers import OrderSerializer
 
 
 @transaction.atomic
-def create_order(
-    *,
-    user: object,
-    shipping_address: str,
-    items: list[dict[str, object]],
-) -> Order:
-    order = Order.objects.create(user=user, shipping_address=shipping_address)
-    total = Decimal("0")
+def create_order(*, request: Request) -> Order:
+    # 1. Lock variant rows to prevent concurrent overselling
+    cart_items = list(
+        CartItem.objects.filter(user=request.user)
+        .select_related("variant", "variant__product")
+        .select_for_update()
+    )
 
-    for item in items:
-        product_id = item["product_id"]
-        quantity = item["quantity"]
-        try:
-            product = Product.objects.select_for_update().get(
-                pk=getattr(product_id, "pk", product_id)
-            )
-        except Product.DoesNotExist as exc:
+    if not cart_items:
+        raise ValidationError({"detail": "Your cart is empty."})
+
+    # 2. Validate stock for ALL items before creating anything
+    for item in cart_items:
+        if item.variant.stock < item.quantity:
             raise ValidationError(
-                {"items": "One or more selected products do not exist."}
-            ) from exc
-        if not product.is_active:
-            raise ValidationError({"items": f"{product.name} is not available."})
-        if product.stock < quantity:
-            raise ValidationError(
-                {"items": f"Only {product.stock} units of {product.name} remain."}
+                {
+                    "detail": f"Insufficient stock for {item.variant}. "
+                    f"Available: {item.variant.stock}, requested: {item.quantity}."
+                }
             )
-        OrderItem.objects.create(
-            order=order,
-            product=product,
-            quantity=quantity,
-            unit_price=product.price,
+
+    # 3. Validate and save the Order first so order.id exists
+    order_serializer = OrderSerializer(data=request.data, context={"request": request})
+    order_serializer.is_valid(raise_exception=True)
+    order = order_serializer.save()
+
+    # 4. Build OrderItems (with price snapshot) and decrement stock
+    order_items = []
+    for item in cart_items:
+        order_items.append(
+            OrderItem(
+                order=order,
+                variant=item.variant,
+                quantity=item.quantity,
+                price=item.variant.price,  # snapshot unit price at checkout
+            )
         )
-        product.stock -= quantity
-        product.save(update_fields=("stock", "updated_at"))
-        total += product.price * quantity
+        # Atomic DB-level decrement
+        item.variant.stock = F("stock") - item.quantity
+        item.variant.save(update_fields=["stock"])
 
-    order.total = total
-    order.save(update_fields=("total",))
-    return order
+    OrderItem.objects.bulk_create(order_items)
+
+    # 5. Clear the user's cart
+    CartItem.objects.filter(user=request.user).delete()
+
+    return order  # type: ignore

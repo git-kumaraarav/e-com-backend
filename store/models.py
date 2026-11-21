@@ -2,45 +2,34 @@ import time
 from decimal import Decimal
 
 from django.conf import settings
-from django.db import models
+from django.db import models, transaction
 from django.utils.text import slugify
-from django.db import transaction
-
-
-class Category(models.Model):
-    name = models.CharField(max_length=100)
-    slug = models.SlugField(unique=True)
-    parent_category = models.ForeignKey(
-        "Category", default=None, on_delete=models.CASCADE
-    )
-
-    class Meta:
-        unique_together = ("slug", "name")
 
 
 class SizeVariant(models.Model):
-    products = models.ForeignKey(
+    product = models.ForeignKey(
         "Product", related_name="size_variants", on_delete=models.CASCADE
     )
     stock = models.PositiveIntegerField(default=1)
     size = models.CharField(max_length=50, default="Free Size")
-    price = models.DecimalField(max_digits=10, decimal_places=2, default=Decimal("99999999.00"))
+    price = models.DecimalField(
+        max_digits=10, decimal_places=2, default=Decimal("99999999.00")
+    )
 
     class Meta:
-        unique_together = ("products", "size")
+        unique_together = ("product", "size")
 
     def __str__(self) -> str:
         return f"{self.size} - ${self.price}"
 
 
-
 class Product(models.Model):
+    @staticmethod
     def slugify_name(name: str) -> str:
         return slugify(name) + "-" + str(int(time.time()))
 
     related_variants = models.ManyToManyField(
-        "self",
-        related_name="variant",
+        "self", blank=True
     )
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True, blank=True, null=True)
@@ -60,34 +49,16 @@ class Product(models.Model):
             super().save(*args, **kwargs)
             if is_new:
                 transaction.on_commit(self._ensure_default_variant)
-    
+
     def _ensure_default_variant(self) -> None:
         if not self.size_variants.exists():
-            SizeVariant.objects.create(products=self) 
-
+            SizeVariant.objects.create(product=self)
 
     class Meta:
         ordering = ("-created_at",)
 
     def __str__(self) -> str:
         return self.name
-
-
-class CarouselBanner(models.Model):
-    title = models.CharField(max_length=200)
-    altText = models.CharField(max_length=300, blank=True)
-    imageUrl = models.ImageField(upload_to="banners/")
-    url = models.URLField(blank=True)
-    is_active = models.BooleanField(default=True)
-    starts_at = models.DateTimeField()
-    ends_at = models.DateTimeField()
-    created_at = models.DateTimeField(auto_now_add=True)
-
-    class Meta:
-        ordering = ("-starts_at",)
-
-    def __str__(self) -> str:
-        return self.title
 
 
 class Order(models.Model):
@@ -105,11 +76,12 @@ class Order(models.Model):
         max_length=20, choices=Status.choices, default=Status.PENDING
     )
     shipping_address = models.TextField()
-    total = models.DecimalField(
-        max_digits=10, decimal_places=2, default=Decimal("0.00")
-    )
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    @property
+    def subtotal(self) -> Decimal:
+        return Decimal("0.00") + sum(self.items.subtotal for item in self.items.all())
 
     class Meta:
         ordering = ("-created_at",)
@@ -120,31 +92,52 @@ class Order(models.Model):
 
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
-    product = models.ForeignKey(
-        Product, on_delete=models.PROTECT, related_name="order_items"
+    variant = models.ForeignKey(
+        SizeVariant, on_delete=models.SET_NULL, related_name="order_items", null=True
     )
-    quantity = models.PositiveIntegerField()
+
+    # freeze the product name at the time of order to avoid issues if the product name changes later
+    product_name = models.CharField(max_length=200)
+    product_size = models.CharField(max_length=50, default="Free Size")
     unit_price = models.DecimalField(max_digits=10, decimal_places=2)
+    quantity = models.PositiveIntegerField()
 
     @property
     def subtotal(self) -> Decimal:
         return self.quantity * self.unit_price
 
+    def save(self, *args, **kwargs) -> None:
+        if not self.product_name:
+            self.product_name = self.variant.product.name
+        if not self.product_size:
+            self.product_size = self.variant.size
+        if not self.unit_price:
+            self.unit_price = self.variant.price
+        super().save(*args, **kwargs)
+
+
+class Cart(models.Model):
+    user = models.OneToOneField(
+        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="cart"
+    )
+    def __str__(self) -> str:
+        return f"Cart of {self.user.username}"
+
 
 class CartItem(models.Model):
-    user = models.ForeignKey(
-        settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="cart_items"
-    )
-    product = models.ForeignKey(
-        Product, on_delete=models.PROTECT, related_name="cart_items"
+    cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
+    variant = models.ForeignKey(
+        SizeVariant, on_delete=models.CASCADE, related_name="cart_items"
     )
     quantity = models.PositiveIntegerField(default=1)
 
-    created_at = models.DateTimeField(auto_now_add=True)
-    updated_at = models.DateTimeField(auto_now=True)
-
     class Meta:
-        unique_together = ("user", "product")
+        unique_together = ("cart", "variant")
+
+    def __str__(self) -> str:
+        return (
+            f"{self.quantity} x {self.variant.product.name} in {self.cart.user.username}'s cart"
+        )
 
 
 class WishList(models.Model):
@@ -204,3 +197,31 @@ class InstagramPost(models.Model):
 
     def __str__(self) -> str:
         return f"Instagram post {self.insta_id}"
+
+
+class CarouselBanner(models.Model):
+    title = models.CharField(max_length=200)
+    altText = models.CharField(max_length=300, blank=True)
+    imageUrl = models.ImageField(upload_to="banners/")
+    url = models.URLField(blank=True)
+    is_active = models.BooleanField(default=True)
+    starts_at = models.DateTimeField()
+    ends_at = models.DateTimeField()
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-starts_at",)
+
+    def __str__(self) -> str:
+        return self.title
+
+
+class Category(models.Model):
+    name = models.CharField(max_length=100)
+    slug = models.SlugField(unique=True)
+    parent_category = models.ForeignKey(
+        "Category", default=None, on_delete=models.CASCADE
+    )
+
+    class Meta:
+        unique_together = ("slug", "name")

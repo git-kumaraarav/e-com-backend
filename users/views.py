@@ -1,19 +1,26 @@
 import os
 
+from dotenv import load_dotenv
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
-from rest_framework import generics, permissions, status
+from rest_framework import generics, permissions, status, viewsets
+from rest_framework.mixins import CreateModelMixin, ListModelMixin
+from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework.permissions import IsAuthenticated, AllowAny     
+from rest_framework.viewsets import GenericViewSet
 
 from users.models import User
 
-from .serializers import OAuthSerializer, UserProfileSerializer, UserRegistrationSerializer
-from dotenv import load_dotenv
+from .serializers import (
+    AddressSerializer,
+    OAuthSerializer,
+    UserProfileSerializer,
+    UserRegistrationSerializer,
+)
 
 load_dotenv()  # Load environment variables from .env file
 
@@ -24,9 +31,7 @@ class OAuthProviders:
         self.github_client_id = os.environ.get("GITHUB_CLIENT_ID")
         self.facebook_client_id = os.environ.get("FACEBOOK_CLIENT_ID")
 
-    def verify_google_token(
-        self, token: str
-    ) -> dict[str, str | None] | None:
+    def verify_google_token(self, token: str) -> dict[str, str | None] | None:
         try:
             print("google client id", self.google_client_id)
             idinfo = id_token.verify_oauth2_token(
@@ -48,11 +53,11 @@ class OAuthProviders:
 
 class OAuthView(generics.GenericAPIView):
     permission_classes = (permissions.AllowAny,)
-    serializer_class = OAuthSerializer  
+    serializer_class = OAuthSerializer
 
     def post(self, request: Request) -> Response:
         serializer = self.get_serializer(data=request.data)
-        if not serializer.is_valid(raise_exception=False): 
+        if not serializer.is_valid(raise_exception=False):
             return Response(
                 {"error": serializer.errors}, status=status.HTTP_400_BAD_REQUEST
             )
@@ -109,12 +114,12 @@ class LoginView(TokenObtainPairView):
         serializer = self.get_serializer(data=request.data)
         try:
             serializer.is_valid(raise_exception=True)
-        except Exception as e:
+        except Exception:
             return Response(
                 {"error": "Invalid credentials"}, status=status.HTTP_401_UNAUTHORIZED
             )
 
-        user = serializer.user 
+        user = serializer.user
         refresh = RefreshToken.for_user(user)
         return Response(
             {
@@ -129,13 +134,14 @@ class LoginView(TokenObtainPairView):
             }
         )
 
+
 class TokenRefreshView(TokenObtainPairView):
     serializer_class = TokenObtainPairSerializer
-    permission_classes = (AllowAny, )
+    permission_classes = (AllowAny,)
 
     def post(self, request: Request, *args, **kwargs) -> Response:
         refresh_token = request.data.get("refreshToken")
-        
+
         if not refresh_token:
             return Response(
                 {"error": "Refresh token is required"},
@@ -155,7 +161,8 @@ class TokenRefreshView(TokenObtainPairView):
             expires_at = refresh_user_token.access_token.payload.get("exp")
         except Exception as e:
             return Response(
-                {"error": f"Invalid refresh token {e}"}, status=status.HTTP_401_UNAUTHORIZED
+                {"error": f"Invalid refresh token {e}"},
+                status=status.HTTP_401_UNAUTHORIZED,
             )
 
         return Response(
@@ -166,6 +173,7 @@ class TokenRefreshView(TokenObtainPairView):
             }
         )
 
+
 class UserProfileView(generics.RetrieveUpdateAPIView):
     serializer_class = UserProfileSerializer
     permission_classes = (permissions.IsAuthenticated,)
@@ -173,3 +181,11 @@ class UserProfileView(generics.RetrieveUpdateAPIView):
     def get_object(self) -> User:
         print(self.request.user)
         return self.request.user
+
+
+class AddressListView(GenericViewSet, ListModelMixin, CreateModelMixin):
+    serializer_class = AddressSerializer
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def get_queryset(self):
+        return self.request.user.addresses.all()
