@@ -1,3 +1,5 @@
+from typing import Any
+
 from rest_framework import serializers
 
 from users.models import Address
@@ -19,25 +21,43 @@ from .services import create_order
 
 
 class CartItemSerializer(serializers.ModelSerializer):
+    item_details = serializers.SerializerMethodField(read_only=True)
+
+    def get_item_details(self, obj: CartItem) -> dict[str, object]:
+        return {
+            "id": obj.variant.id,
+            "product_id": obj.variant.product.id,
+            "name": obj.variant.product.name,
+            "slug": obj.variant.product.slug,
+            "image": obj.variant.product.image.url
+            if obj.variant.product.image
+            else None,
+            "size": obj.variant.size,
+            "unit_price": obj.variant.price,
+            "quantity": obj.quantity,
+        }
+
     class Meta:
         model = CartItem
-        fields = ("id", "product", "quantity")
+        fields = ("id", "item_details")
+        read_only_fields = ("id", "item_details")
 
 
 class CartSerializer(serializers.ModelSerializer):
     user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     items = CartItemSerializer(many=True, read_only=True)
     add_item = serializers.PrimaryKeyRelatedField(
-        queryset=Product.objects.filter(is_active=True),
+        queryset=SizeVariant.objects.all(),
         write_only=True,
         required=False,
     )
-    quantity = serializers.IntegerField(min_value=1, default=1)
+
+    quantity = serializers.IntegerField(write_only=True, required=False, default=1)
 
     class Meta:
         model = Cart
-        fields = ("id", "user", "items", "add_item", "quantity")
-        read_only_fields = ("id", "items")
+        fields = ("user", "items", "add_item", "quantity")
+        read_only_fields = ("items",)
 
     def create(self, validated_data):
         product = validated_data.pop("add_item", None)
@@ -50,21 +70,21 @@ class CartSerializer(serializers.ModelSerializer):
         return cart
 
     def update(self, instance, validated_data):
-        product = validated_data.pop("add_item", None)
+        variant = validated_data.pop("add_item", None)
         quantity = validated_data.pop("quantity", 1)
 
         # if quantity is 0, remove the item from the cart
-        if product and quantity == 0:
-            CartItem.objects.filter(cart=instance, product=product).delete()
+        if variant and quantity == 0:
+            CartItem.objects.filter(cart=instance, variant=variant).delete()
 
-        if product:
-            self._upsert_item(instance, product, quantity)
+        if variant:
+            self._upsert_item(instance, variant, quantity)
         return instance
 
-    def _upsert_item(self, cart, product, quantity):
+    def _upsert_item(self, cart, variant, quantity):
         cart_item, created = CartItem.objects.get_or_create(
             cart=cart,
-            product=product,
+            variant=variant,
             defaults={"quantity": quantity},
         )
         if not created:
@@ -142,45 +162,52 @@ class OrderItemSerializer(serializers.ModelSerializer):
     class Meta:
         model = OrderItem
         fields = "__all__"
-        read_only_fields = ("id", "order", "variant", "product_name", "product_size", "unit_price", "quantity", "subtotal")
+        read_only_fields = (
+            "id",
+            "order",
+            "variant",
+            "product_name",
+            "product_size",
+            "unit_price",
+            "quantity",
+            "subtotal",
+        )
 
 
-class HistoryOrderSerializer(serializers.ModelSerializer):
+class OrderDetailSerializer(serializers.ModelSerializer):
     items = OrderItemSerializer(many=True, read_only=True)
-    user = serializers.PrimaryKeyRelatedField(read_only=True)
+    shipping_address = serializers.StringRelatedField(read_only=True)
 
     class Meta:
         model = Order
-        fields = (
-            "id",
-            "user",
-            "status",
-            "shipping_address",
-            "total",
-            "items",
-            "created_at",
-            "updated_at",
-        )
+        fields = "__all__"
         read_only_fields = (
             "id",
-            "user",
             "status",
-            "total",
             "items",
+            "subtotal",
+            "shipping_address",
             "created_at",
             "updated_at",
         )
 
 
-class OrderSerializer(serializers.ModelSerializer):
-    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
+class CheckoutSerializer(serializers.ModelSerializer):
     address = serializers.PrimaryKeyRelatedField(
         queryset=Address.objects.all(), write_only=True, required=True
     )
 
     class Meta:
         model = Order
-        fields = "__all__" 
+        fields = "__all__"
+        read_only_fields = (
+            "id",
+            "status",
+            "subtotal",
+            "shipping_address",
+            "created_at",
+            "updated_at",
+        )
 
     def validate_address(self, address: Address) -> Address:
         if address.user != self.context["request"].user:
@@ -189,14 +216,9 @@ class OrderSerializer(serializers.ModelSerializer):
             )
         return address
 
-    def create(self, validated_data: dict[str, object]) -> Order:
-        items = validated_data.pop("items")
-        validated_data["shipping_address"] = validated_data.pop(
-            "address"
-        ).get_full_address()
-        return create_order(
-            user=self.context["request"].user, items=items, **validated_data
-        )
+    def create(self, validated_data: dict[str, Any]) -> Order:
+        address = validated_data.pop("address")
+        return create_order(user=self.context["request"].user, address=address)
 
 
 class EventSaleBannerSerializer(serializers.ModelSerializer):

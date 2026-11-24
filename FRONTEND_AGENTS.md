@@ -164,8 +164,8 @@ Paginated responses use `CursorPaginationExt`:
 
 | Category                 | Endpoints                                                                      |
 | ------------------------ | ------------------------------------------------------------------------------ |
-| Actually paginated       | Products, orders, cart items, wishlist, Instagram feed, Search, newly launched |
-| No pagination configured | Banners, event banners, authentication, user profile, OAuth                    |
+| Actually paginated       | Products, order history, cart items, wishlist, Search, newly launched          |
+| No pagination configured | Banners, event banners, Instagram feed, addresses, authentication, user profile, OAuth |
 
 ## Authentication endpoints
 
@@ -241,33 +241,33 @@ read-only endpoint.
 
 ### Orders
 
-| HTTP method    | URL                 | Properties                                                                                                                                                                                |
-| -------------- | ------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET`          | `/api/orders/`      | Authenticated users read their own orders; staff can read all orders.                                                                                                                     |
-| `POST`         | `/api/orders/`      | Authenticated users create an order with `shipping_address` and `items`. Each item has `product_id` and `quantity` (minimum 1).                                                           |
-| `GET`          | `/api/orders/<id>/` | Reads an order.                                                                                                                                                                           |
-| `PUT`, `PATCH` | `/api/orders/<id>/` | Staff/admin order management. The order serializer only permits `shipping_address` to be changed; `id`, `user`, `status`, `total`, `items`, `created_at`, and `updated_at` are read-only. |
-| `DELETE`       | `/api/orders/<id>/` | Staff/admin order management.                                                                                                                                                             |
+| HTTP method | URL                             | Properties |
+| ----------- | ------------------------------- | ---------- |
+| `GET`       | `/api/orders-history/`          | Reads the authenticated user's order history. |
+| `GET`       | `/api/orders-history/<id>/`     | Reads one owned order. |
 
-Order response properties are `id`, `user`, `status`, `shipping_address`,
-`total`, `items`, `created_at`, and `updated_at`. Each item contains
-`product`, `product_name`, `quantity`, `unit_price`, and `subtotal`.
+Order history is read-only; this project does not currently register an
+`/api/orders/` creation or management route. Existing order properties are
+`id`, `user`, `status`, `shipping_address`, `subtotal`, `items`,
+`created_at`, and `updated_at`. The history serializer exposes item product
+names as a string list.
 
 ### Cart items
 
 Base route: `/api/u/cart-items/`
 
-| HTTP method    | URL                       | Properties                                                                               |
-| -------------- | ------------------------- | ---------------------------------------------------------------------------------------- |
-| `GET`          | `/api/u/cart-items/`      | Reads the authenticated user's cart items.                                               |
-| `POST`         | `/api/u/cart-items/`      | Creates an item with `product` (product ID) and `quantity`. `user` is assigned from the access token. |
-| `GET`          | `/api/u/cart-items/<id>/` | Reads one owned cart item.                                                               |
-| `PUT`, `PATCH` | `/api/u/cart-items/<id>/` | Updates `product` and/or `quantity`.                                                     |
-| `DELETE`       | `/api/u/cart-items/<id>/` | Deletes an owned cart item.                                                              |
+| HTTP method    | URL                       | Properties |
+| -------------- | ------------------------- | ---------- |
+| `GET`          | `/api/u/cart-items/`      | Reads the authenticated user's cart object and items. |
+| `POST`         | `/api/u/cart-items/`      | Add or upsert a variant with `add_item` (SizeVariant ID) and `quantity`. |
+| `PUT`, `PATCH` | `/api/u/cart-items/<id>/` | Set a variant quantity with `add_item` and `quantity`. |
+| `DELETE`       | `/api/u/cart-items/<id>/` | Deletes the user's cart object. |
 
-Cart item response properties are `id`, `product`, `quantity`, `created_at`,
-and `updated_at`. `user` is accepted internally from the access token and is
-not returned by the serializer.
+Cart mutations use `SizeVariant` IDs, not Product IDs. Quantity `0` removes
+the variant from the cart. Cart item response details contain `id`,
+`item_details` (`id`, `product_id`, `name`, `slug`, `image`, `size`,
+`unit_price`, `quantity`). `user` is assigned from the access token and is not
+returned.
 
 ### Wish list
 
@@ -284,3 +284,16 @@ Base route: `/api/u/wish-list/`
 Wish-list response properties are `id`, `product`, and `added_at`. `user` is
 accepted internally from the access token and is not returned by the
 serializer.
+
+### Addresses
+
+Base route: `/api/u/addresses/`
+
+| HTTP method | URL                    | Properties |
+| ----------- | ---------------------- | ---------- |
+| `GET`       | `/api/u/addresses/`    | Lists the authenticated user's addresses. |
+| `POST`      | `/api/u/addresses/`    | Creates an address for the authenticated user. |
+
+Address properties are `id`, `name`, `street`, `city`, `state`, `postal_code`,
+`country`, and `is_default`. `user` is assigned from the access token and is
+not returned.

@@ -2,7 +2,7 @@
   "info": {
     "_postman_id": "f2dbf4a1-4d6c-4c3f-8b5e-2d0b1b8c2f31",
     "name": "E-Commerce API",
-    "description": "Requests for the Django e-commerce API. Set baseUrl, then run Register or Login to populate the JWT variables.",
+    "description": "Postman collection for the Django REST e-commerce API. Set baseUrl, then run Register or Login to populate access and refresh token variables. All JSON responses use the CoreRenderer envelope: status, status_code, timestamp, and data/error.",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
@@ -11,11 +11,15 @@
     { "key": "refreshToken", "value": "" },
     { "key": "productSlug", "value": "example-product-123" },
     { "key": "productId", "value": "1" },
+    { "key": "variantId", "value": "1" },
     { "key": "bannerId", "value": "1" },
     { "key": "eventBannerId", "value": "1" },
     { "key": "orderId", "value": "1" },
-    { "key": "cartItemId", "value": "1" },
-    { "key": "wishListItemId", "value": "1" }
+    { "key": "cartId", "value": "1" },
+    { "key": "wishListItemId", "value": "1" },
+    { "key": "addressId", "value": "1" },
+    { "key": "instagramPostId", "value": "1" },
+    { "key": "searchQuery", "value": "example" }
   ],
   "auth": {
     "type": "bearer",
@@ -39,7 +43,20 @@
               "options": { "raw": { "language": "json" } }
             },
             "url": "{{baseUrl}}/api/auth/register/"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Registration succeeds', function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Login",
@@ -60,9 +77,46 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const body = pm.response.json();",
-                  "if (body.accessToken) pm.collectionVariables.set('accessToken', body.accessToken);",
-                  "if (body.refreshToken) pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                  "pm.test('Login returns tokens', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json().data;",
+                  "  pm.expect(body).to.have.property('accessToken');",
+                  "  pm.expect(body).to.have.property('refreshToken');",
+                  "  pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', body.refreshToken);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Obtain JWT Pair",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"password\": \"password123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/token/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('JWT pair is returned', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json().data;",
+                  "  pm.expect(body).to.have.property('access');",
+                  "  pm.expect(body).to.have.property('refresh');",
+                  "  pm.collectionVariables.set('accessToken', body.access);",
+                  "  pm.collectionVariables.set('refreshToken', body.refresh);",
+                  "});"
                 ]
               }
             }
@@ -71,6 +125,7 @@
         {
           "name": "Refresh Token",
           "request": {
+            "auth": { "type": "noauth" },
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
@@ -86,9 +141,12 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const body = pm.response.json();",
-                  "if (body.accessToken) pm.collectionVariables.set('accessToken', body.accessToken);",
-                  "if (body.refreshToken) pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                  "pm.test('Refresh returns a new token pair', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json().data;",
+                  "  pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', body.refreshToken);",
+                  "});"
                 ]
               }
             }
@@ -133,9 +191,11 @@
               "script": {
                 "type": "text/javascript",
                 "exec": [
-                  "const body = pm.response.json();",
-                  "if (body.accessToken) pm.collectionVariables.set('accessToken', body.accessToken);",
-                  "if (body.refreshToken) pm.collectionVariables.set('refreshToken', body.refreshToken);"
+                  "if (pm.response.code === 200) {",
+                  "  const body = pm.response.json().data;",
+                  "  pm.collectionVariables.set('accessToken', body.accessToken);",
+                  "  pm.collectionVariables.set('refreshToken', body.refreshToken);",
+                  "}"
                 ]
               }
             }
@@ -157,11 +217,27 @@
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Example Product\",\n  \"description\": \"A product description\",\n  \"price\": \"29.99\",\n  \"stock\": 20,\n  \"type\": \"general\",\n  \"attributes\": { \"color\": \"blue\" },\n  \"is_active\": true\n}",
+              "raw": "{\n  \"name\": \"Example Product\",\n  \"description\": \"A product description\",\n  \"attributes\": { \"color\": \"blue\" },\n  \"is_active\": true,\n  \"related_variant_ids\": []\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": "{{baseUrl}}/api/products/"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Product is created', function () {",
+                  "  pm.expect([200, 201]).to.include(pm.response.code);",
+                  "  if (pm.response.code === 201) {",
+                  "    pm.collectionVariables.set('productSlug', pm.response.json().data.slug);",
+                  "  }",
+                  "});"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Get Product",
@@ -170,11 +246,11 @@
         {
           "name": "Update Product",
           "request": {
-            "method": "PUT",
+            "method": "PATCH",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"name\": \"Updated Product\",\n  \"description\": \"Updated description\",\n  \"price\": \"34.99\",\n  \"stock\": 15,\n  \"type\": \"general\",\n  \"attributes\": {},\n  \"is_active\": true\n}",
+              "raw": "{\n  \"name\": \"Updated Product\",\n  \"description\": \"Updated description\",\n  \"attributes\": { \"color\": \"green\" },\n  \"is_active\": true\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": "{{baseUrl}}/api/products/{{productSlug}}/"
@@ -187,11 +263,27 @@
       ]
     },
     {
+      "name": "Catalog Discovery",
+      "item": [
+        {
+          "name": "Search Products",
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/api/search/?q={{searchQuery}}"
+          }
+        },
+        {
+          "name": "List Newly Launched",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/newly-launched/" }
+        }
+      ]
+    },
+    {
       "name": "Banners",
       "item": [
         {
           "name": "List Banners",
-          "request": { "method": "GET", "url": "{{baseUrl}}/api/banners/" }
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{baseUrl}}/api/banners/" }
         },
         {
           "name": "Create Banner",
@@ -210,11 +302,24 @@
               ]
             },
             "url": "{{baseUrl}}/api/banners/"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('bannerId', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Get Banner",
-          "request": { "method": "GET", "url": "{{baseUrl}}/api/banners/{{bannerId}}/" }
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{baseUrl}}/api/banners/{{bannerId}}/" }
         },
         {
           "name": "Update Banner",
@@ -241,7 +346,7 @@
       "item": [
         {
           "name": "List Event Banners",
-          "request": { "method": "GET", "url": "{{baseUrl}}/api/event-banners/" }
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{baseUrl}}/api/event-banners/" }
         },
         {
           "name": "Create Event Banner",
@@ -255,16 +360,30 @@
                 { "key": "imageUrl", "type": "file", "src": "" },
                 { "key": "url", "value": "https://example.com/sale", "type": "text" },
                 { "key": "description", "value": "Seasonal discounts", "type": "text" },
+                { "key": "is_active", "value": "true", "type": "text" },
                 { "key": "starts_at", "value": "2026-11-01T00:00:00Z", "type": "text" },
                 { "key": "ends_at", "value": "2026-12-31T23:59:59Z", "type": "text" }
               ]
             },
             "url": "{{baseUrl}}/api/event-banners/"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('eventBannerId', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Get Event Banner",
-          "request": { "method": "GET", "url": "{{baseUrl}}/api/event-banners/{{eventBannerId}}/" }
+          "request": { "method": "GET", "auth": { "type": "noauth" }, "url": "{{baseUrl}}/api/event-banners/{{eventBannerId}}/" }
         },
         {
           "name": "Update Event Banner",
@@ -287,88 +406,54 @@
       ]
     },
     {
-      "name": "Orders",
+      "name": "Cart",
       "item": [
         {
-          "name": "List My Orders",
-          "request": { "method": "GET", "url": "{{baseUrl}}/api/orders/" }
-        },
-        {
-          "name": "Create Order",
-          "request": {
-            "method": "POST",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"shipping_address\": \"123 Main Street, City, Country\",\n  \"items\": [\n    { \"product_id\": 1, \"quantity\": 2 }\n  ]\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/api/orders/"
-          }
-        },
-        {
-          "name": "Get Order",
-          "request": { "method": "GET", "url": "{{baseUrl}}/api/orders/{{orderId}}/" }
-        },
-        {
-          "name": "Update Order (Admin/Staff)",
-          "request": {
-            "method": "PATCH",
-            "header": [{ "key": "Content-Type", "value": "application/json" }],
-            "body": {
-              "mode": "raw",
-              "raw": "{\n  \"status\": \"confirmed\"\n}",
-              "options": { "raw": { "language": "json" } }
-            },
-            "url": "{{baseUrl}}/api/orders/{{orderId}}/"
-          }
-        },
-        {
-          "name": "Delete Order (Admin/Staff)",
-          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/orders/{{orderId}}/" }
-        }
-      ]
-    },
-    {
-      "name": "Cart Items",
-      "item": [
-        {
-          "name": "List Cart Items",
+          "name": "Get Cart",
           "request": { "method": "GET", "url": "{{baseUrl}}/api/u/cart-items/" }
         },
         {
-          "name": "Add Cart Item",
+          "name": "Add or Update Cart Item",
           "request": {
             "method": "POST",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"product\": {{productId}},\n  \"quantity\": 1\n}",
+              "raw": "{\n  \"add_item\": {{variantId}},\n  \"quantity\": 1\n}",
               "options": { "raw": { "language": "json" } }
             },
             "url": "{{baseUrl}}/api/u/cart-items/"
           }
         },
         {
-          "name": "Get Cart Item",
-          "request": { "method": "GET", "url": "{{baseUrl}}/api/u/cart-items/{{cartItemId}}/" }
-        },
-        {
-          "name": "Update Cart Item",
+          "name": "Set Cart Item Quantity",
           "request": {
             "method": "PATCH",
             "header": [{ "key": "Content-Type", "value": "application/json" }],
             "body": {
               "mode": "raw",
-              "raw": "{\n  \"quantity\": 2\n}",
+              "raw": "{\n  \"add_item\": {{variantId}},\n  \"quantity\": 2\n}",
               "options": { "raw": { "language": "json" } }
             },
-            "url": "{{baseUrl}}/api/u/cart-items/{{cartItemId}}/"
+            "url": "{{baseUrl}}/api/u/cart-items/{{cartId}}/"
           }
         },
         {
-          "name": "Delete Cart Item",
-          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/u/cart-items/{{cartItemId}}/" }
+          "name": "Remove Cart Item",
+          "request": {
+            "method": "PATCH",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"add_item\": {{variantId}},\n  \"quantity\": 0\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/u/cart-items/{{cartId}}/"
+          }
+        },
+        {
+          "name": "Delete Cart",
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/u/cart-items/{{cartId}}/" }
         }
       ]
     },
@@ -390,7 +475,20 @@
               "options": { "raw": { "language": "json" } }
             },
             "url": "{{baseUrl}}/api/u/wish-list/"
-          }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('wishListItemId', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
         },
         {
           "name": "Get Wish List Item",
@@ -416,6 +514,86 @@
       ]
     },
     {
+      "name": "Addresses",
+      "item": [
+        {
+          "name": "List Addresses",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/u/addresses/" }
+        },
+        {
+          "name": "Create Address",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Home\",\n  \"street\": \"123 Main Street\",\n  \"city\": \"Example City\",\n  \"state\": \"Example State\",\n  \"postal_code\": \"123456\",\n  \"country\": \"Example Country\",\n  \"is_default\": true\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/u/addresses/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "if (pm.response.code === 201) {",
+                  "  pm.collectionVariables.set('addressId', pm.response.json().data.id);",
+                  "}"
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    },
+    {
+      "name": "Orders",
+      "description": "The project currently exposes read-only order history at this route.",
+      "item": [
+        {
+          "name": "Place Order (Checkout)",
+          "description": "Requires authentication, an address ID belonging to the authenticated user, and at least one item in their cart. On success, the cart is cleared; the response order ID is saved to orderId.",
+          "request": {
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"address\": {{addressId}}\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/u/checkout/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Checkout creates an order', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(true);",
+                  "  pm.expect(body.data).to.have.property('id');",
+                  "  pm.collectionVariables.set('orderId', body.data.id);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "List My Orders",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/orders-history/" }
+        },
+        {
+          "name": "Get Order",
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/orders-history/{{orderId}}/" }
+        }
+      ]
+    },
+    {
       "name": "Instagram",
       "item": [
         {
@@ -424,6 +602,14 @@
             "auth": { "type": "noauth" },
             "method": "GET",
             "url": "{{baseUrl}}/api/instagram-feed/"
+          }
+        },
+        {
+          "name": "Get Cached Instagram Post",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "GET",
+            "url": "{{baseUrl}}/api/instagram-feed/{{instagramPostId}}/"
           }
         }
       ]

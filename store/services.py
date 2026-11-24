@@ -1,17 +1,17 @@
 from django.db import transaction
 from django.db.models import F
 from rest_framework.exceptions import ValidationError
-from rest_framework.request import Request
+
+from users.models import Address, User
 
 from .models import CartItem, Order, OrderItem
-from .serializers import OrderSerializer
 
 
 @transaction.atomic
-def create_order(*, request: Request) -> Order:
+def create_order(*, user: User, address: Address) -> Order:
     # 1. Lock variant rows to prevent concurrent overselling
     cart_items = list(
-        CartItem.objects.filter(user=request.user)
+        CartItem.objects.filter(cart__user=user)
         .select_related("variant", "variant__product")
         .select_for_update()
     )
@@ -29,10 +29,10 @@ def create_order(*, request: Request) -> Order:
                 }
             )
 
-    # 3. Validate and save the Order first so order.id exists
-    order_serializer = OrderSerializer(data=request.data, context={"request": request})
-    order_serializer.is_valid(raise_exception=True)
-    order = order_serializer.save()
+    order = Order.objects.create(
+        user=user,
+        shipping_address=address.get_full_address,
+    )
 
     # 4. Build OrderItems (with price snapshot) and decrement stock
     order_items = []
@@ -42,7 +42,9 @@ def create_order(*, request: Request) -> Order:
                 order=order,
                 variant=item.variant,
                 quantity=item.quantity,
-                price=item.variant.price,  # snapshot unit price at checkout
+                product_name=item.variant.product.name,
+                product_size=item.variant.size,
+                unit_price=item.variant.price,
             )
         )
         # Atomic DB-level decrement
@@ -51,7 +53,9 @@ def create_order(*, request: Request) -> Order:
 
     OrderItem.objects.bulk_create(order_items)
 
-    # 5. Clear the user's cart
-    CartItem.objects.filter(user=request.user).delete()
+    # 5. Create pay link for the order
 
-    return order  # type: ignore
+    # 6. Clear the user's cart
+    CartItem.objects.filter(cart__user=user).delete()
+
+    return order

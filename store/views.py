@@ -1,17 +1,15 @@
 from django.db.models import Q, QuerySet
 from django.utils import timezone
-from rest_framework import permissions, views, viewsets
+from rest_framework import generics, permissions, viewsets
 from rest_framework.request import Request
 from rest_framework.response import Response
 
 from .models import (
     CarouselBanner,
     Cart,
-    CartItem,
     EventSaleBanner,
     InstagramPost,
     Order,
-    OrderItem,
     Product,
     SizeVariant,
     WishList,
@@ -19,16 +17,14 @@ from .models import (
 from .pagination import CursorPaginationExt
 from .permissions import (
     IsAdminOrReadOnly,
-    IsAdminOrStaff,
 )
 from .serializers import (
     CarouselBannerSerializer,
     CartSerializer,
+    CheckoutSerializer,
     EventSaleBannerSerializer,
     InstagramPostSerializer,
-    OrderItemSerializer,
-    OrderSerializer,
-    PlaceOrderSerializer,
+    OrderDetailSerializer,
     ProductSerializer,
     SizeVariantSerializer,
     WishListSerializer,
@@ -57,35 +53,6 @@ class CarouselBannerViewSet(viewsets.ModelViewSet):
         if not self.request.user.is_staff:
             queryset = queryset.filter(is_active=True)
         return queryset
-
-
-class OrderViewSet(viewsets.ModelViewSet):
-    pagination_class = CursorPaginationExt
-
-    def get_permission_classes(self) -> list[permissions.BasePermission]:  # type: ignore
-        if self.action in ["create", "list", "retrieve"]:
-            return [permissions.IsAuthenticated()]
-        return [IsAdminOrStaff()]
-
-    def get_queryset(self) -> QuerySet[Order]:  # type: ignore
-        queryset = Order.objects.select_related("user").prefetch_related(
-            "items__product"
-        )
-        if not self.request.user.is_staff:
-            queryset = queryset.filter(user=self.request.user)
-        return queryset
-
-    def get_serializer_class(self) -> type[OrderSerializer | PlaceOrderSerializer]:  # type: ignore
-        return PlaceOrderSerializer if self.action == "create" else OrderSerializer
-
-    def create(self, request: Request, *args: object, **kwargs: object) -> Response:
-        input_serializer = self.get_serializer(data=request.data)
-        input_serializer.is_valid(raise_exception=True)
-        order = input_serializer.save()
-        output_serializer = OrderSerializer(
-            order, context=self.get_serializer_context()
-        )
-        return Response(output_serializer.data, status=201)
 
 
 class CartViewSet(viewsets.ModelViewSet):
@@ -148,7 +115,7 @@ class SearchViewSet(viewsets.GenericViewSet):
             Q(name__icontains=query) | Q(description__icontains=query), is_active=True
         )
         page = self.paginate_queryset(products)
-        serializer = ProductSerializer(page, many=True)
+        serializer = ProductSerializer(page, many=True, context={"request": request})
         return self.get_paginated_response(serializer.data)
 
 
@@ -160,27 +127,24 @@ class NewlyLaunched(viewsets.GenericViewSet):
     def list(self, request: Request) -> Response:
         products = Product.objects.filter(is_active=True)
         page = self.paginate_queryset(products)
-        serializer = ProductSerializer(page, many=True)
+        serializer = ProductSerializer(page, many=True, context={"request": request})
         return self.get_paginated_response(serializer.data)
 
 
 class OrderHistoryViewSet(viewsets.ReadOnlyModelViewSet):
     permission_classes = (permissions.IsAuthenticated,)
-    serializer_class = OrderSerializer
     pagination_class = CursorPaginationExt
+    serializer_class = OrderDetailSerializer
 
     def get_queryset(self) -> QuerySet[Order]:  # type: ignore
         return (
             Order.objects.filter(user=self.request.user)
             .select_related("user")
-            .prefetch_related("items__product")
+            .prefetch_related("items__variant__product")
         )
 
 
-class PlaceOrderViewSet(views.APIView):
+# dedicated for placing orders only
+class CheckoutView(generics.CreateAPIView):
     permission_classes = (permissions.IsAuthenticated,)
-    serializer_class = PlaceOrderSerializer
-
-    def post(self, request: Request, *args: object, **kwargs: object) -> Response:
-
-        
+    serializer_class = CheckoutSerializer

@@ -8,10 +8,11 @@ from rest_framework_simplejwt.views import TokenObtainPairView
 from store.views import (
     CarouselBannerViewSet,
     CartViewSet,
+    CheckoutView,
     EventSaleBannerViewSet,
     InstagramFeedViewSet,
     NewlyLaunched,
-    OrderViewSet,
+    OrderHistoryViewSet,
     ProductViewSet,
     SearchViewSet,
     WishListViewset,
@@ -29,7 +30,7 @@ router = DefaultRouter()
 router.register("products", ProductViewSet, basename="product")
 router.register("banners", CarouselBannerViewSet, basename="banner")
 router.register("event-banners", EventSaleBannerViewSet, basename="event-banner")
-router.register("orders", OrderViewSet, basename="order")
+router.register("orders-history", OrderHistoryViewSet, basename="order-history")
 router.register("u/cart-items", CartViewSet, basename="cart-item")
 router.register("u/wish-list", WishListViewset, basename="wish-list")
 router.register("instagram-feed", InstagramFeedViewSet, basename="instagram-feed")
@@ -45,6 +46,7 @@ urlpatterns = [
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/auth/me/", UserProfileView.as_view(), name="user-profile"),
     path("api/auth/oauth/", OAuthView.as_view(), name="oauth_login"),
+    path("api/u/checkout/", CheckoutView.as_view(), name="checkout"),
     path("api/", include(router.urls)),
 ]
 

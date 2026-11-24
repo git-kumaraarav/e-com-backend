@@ -93,7 +93,7 @@ class Order(models.Model):
 class OrderItem(models.Model):
     order = models.ForeignKey(Order, on_delete=models.CASCADE, related_name="items")
     variant = models.ForeignKey(
-        SizeVariant, on_delete=models.SET_NULL, related_name="order_items", null=True
+        SizeVariant, on_delete=models.SET_NULL, related_name="order_item", null=True
     )
 
     # freeze the product name at the time of order to avoid issues if the product name changes later
@@ -120,9 +120,6 @@ class Cart(models.Model):
     user = models.OneToOneField(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="cart"
     )
-    def __str__(self) -> str:
-        return f"Cart of {self.user.username}"
-
 
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
@@ -133,12 +130,6 @@ class CartItem(models.Model):
 
     class Meta:
         unique_together = ("cart", "variant")
-
-    def __str__(self) -> str:
-        return (
-            f"{self.quantity} x {self.variant.product.name} in {self.cart.user.username}'s cart"
-        )
-
 
 class WishList(models.Model):
     user = models.ForeignKey(
