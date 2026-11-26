@@ -17,7 +17,7 @@ from .models import (
     SizeVariant,
     WishList,
 )
-from .services import create_order
+from .services.create_order import create_order
 
 
 class CartItemSerializer(serializers.ModelSerializer):
@@ -152,11 +152,11 @@ class CarouselBannerSerializer(serializers.ModelSerializer):
 
 class OrderItemSerializer(serializers.ModelSerializer):
     order = serializers.PrimaryKeyRelatedField(
-        source="order", queryset=Order.objects.all(), write_only=True
+        queryset=Order.objects.all(), write_only=True
     )
 
     variant = serializers.PrimaryKeyRelatedField(
-        source="variant", queryset=SizeVariant.objects.all(), write_only=True
+        queryset=SizeVariant.objects.all(), write_only=True
     )
 
     class Meta:
@@ -250,3 +250,8 @@ class WishListSerializer(serializers.ModelSerializer):
         model = WishList
         fields = "__all__"
         read_only_fields = ("id", "added_at")
+
+
+class PaymentVerificationSerializer(serializers.Serializer):
+    razorpay_payment_id = serializers.CharField(required=True)
+    razorpay_signature = serializers.CharField(required=True)

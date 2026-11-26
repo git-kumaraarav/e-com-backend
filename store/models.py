@@ -1,4 +1,5 @@
 import time
+import uuid
 from decimal import Decimal
 
 from django.conf import settings
@@ -28,9 +29,7 @@ class Product(models.Model):
     def slugify_name(name: str) -> str:
         return slugify(name) + "-" + str(int(time.time()))
 
-    related_variants = models.ManyToManyField(
-        "self", blank=True
-    )
+    related_variants = models.ManyToManyField("self", blank=True)
     name = models.CharField(max_length=200)
     slug = models.SlugField(unique=True, blank=True, null=True)
     description = models.TextField(blank=True)
@@ -69,12 +68,19 @@ class Order(models.Model):
         DELIVERED = "delivered", "Delivered"
         CANCELLED = "cancelled", "Cancelled"
 
+    reciept_id = models.UUIDField(
+        primary_key=True, default=uuid.uuid4, editable=False, unique=True
+    )
+
+    remote_payment_id = models.CharField(max_length=100, blank=True, null=True)
+
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="orders"
     )
     status = models.CharField(
         max_length=20, choices=Status.choices, default=Status.PENDING
     )
+    is_paid = models.BooleanField(default=False)
     shipping_address = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
@@ -88,6 +94,10 @@ class Order(models.Model):
 
     def __str__(self) -> str:
         return f"Order #{self.pk}"
+
+    @property
+    def get_reciept_id(self):
+        return self.reciept_id.hex
 
 
 class OrderItem(models.Model):
@@ -121,6 +131,7 @@ class Cart(models.Model):
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="cart"
     )
 
+
 class CartItem(models.Model):
     cart = models.ForeignKey(Cart, on_delete=models.CASCADE, related_name="items")
     variant = models.ForeignKey(
@@ -130,6 +141,7 @@ class CartItem(models.Model):
 
     class Meta:
         unique_together = ("cart", "variant")
+
 
 class WishList(models.Model):
     user = models.ForeignKey(

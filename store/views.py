@@ -2,7 +2,19 @@ from django.db.models import Q, QuerySet
 from django.utils import timezone
 from rest_framework import generics, permissions, viewsets
 from rest_framework.request import Request
+import razorpay.errors
+from django.shortcuts import get_object_or_404
+from rest_framework import status
 from rest_framework.response import Response
+from rest_framework.views import APIView
+
+from core.services.payment_verification import verify_payment
+
+from .models import Order
+from .razorpay_client import client
+from .serializers import OrderSerializer, PaymentVerificationSerializer
+
+rom rest_framework.response import Response
 
 from .models import (
     CarouselBanner,
@@ -144,7 +156,13 @@ class OrderHistoryViewSet(viewsets.ReadOnlyModelViewSet):
         )
 
 
-# dedicated for placing orders only
 class CheckoutView(generics.CreateAPIView):
     permission_classes = (permissions.IsAuthenticated,)
     serializer_class = CheckoutSerializer
+
+class VerifyPaymentAPIView(APIView):
+    permission_classes = (permissions.IsAuthenticated,)
+
+    def post(self, request):
+        return verify_payment(request)
+

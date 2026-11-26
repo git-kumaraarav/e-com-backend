@@ -1,10 +1,12 @@
 asgiref==3.12.1
+celery[redis]==5.7.0
 Django==6.1.2
 google-auth==2.62.0
 django-rest-framework==0.1.0
 djangorestframework==3.18.3
 djangorestframework_simplejwt==5.5.1
 pillow==12.3.0
+redis==8.2.0
 requests==2.32.3
 PyJWT==2.15.1
 sqlparse==0.6.0

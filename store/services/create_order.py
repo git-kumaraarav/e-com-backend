@@ -4,7 +4,8 @@ from rest_framework.exceptions import ValidationError
 
 from users.models import Address, User
 
-from .models import CartItem, Order, OrderItem
+from ..models import CartItem, Order, OrderItem
+from ...core.services.razorpay_client import client
 
 
 @transaction.atomic
@@ -54,8 +55,24 @@ def create_order(*, user: User, address: Address) -> Order:
     OrderItem.objects.bulk_create(order_items)
 
     # 5. Create pay link for the order
+    client.set_app_details({"title" : "Django", "version" : "6.1"})
+    try: 
+        payment = client.order.create(data=
+            {
+                "amount": int(order.subtotal * 100),  # Amount in paise
+                "currency": "INR",
+                "receipt": f"order_{order.get_reciept_id}",
+                "payment_capture": 1,
+            }
+        )
+    except Exception as e:
+        raise ValidationError({"detail": f"Failed to create payment link: {str(e)}"})
+
+    order.remote_payment_id = payment["id"]
+    order.save(update_fields=["remote_payment_id"])
 
     # 6. Clear the user's cart
     CartItem.objects.filter(cart__user=user).delete()
 
-    return order
+    # 7. Return the created order
+    return payment

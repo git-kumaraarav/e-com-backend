@@ -8,10 +8,10 @@ from rest_framework.mixins import CreateModelMixin, ListModelMixin
 from rest_framework.permissions import AllowAny
 from rest_framework.request import Request
 from rest_framework.response import Response
+from rest_framework.viewsets import GenericViewSet
 from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 from rest_framework_simplejwt.tokens import RefreshToken
 from rest_framework_simplejwt.views import TokenObtainPairView
-from rest_framework.viewsets import GenericViewSet
 
 from users.models import User
 
@@ -104,6 +104,36 @@ class RegisterView(generics.CreateAPIView):
     queryset = User.objects.all()
     serializer_class = UserRegistrationSerializer
     permission_classes = (permissions.AllowAny,)
+
+    def create(self, request: Request, *args, **kwargs) -> Response:
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+
+        data = serializer.validated_data()
+
+        # generate OTP and send it to the user's email for verification
+        otp = generate_otp(request.user.otp_secret)
+
+        # send email
+
+
+
+        user = serializer.save()
+        refresh = RefreshToken.for_user(user)
+        return Response(
+            {
+                "accessToken": str(refresh.access_token),
+                "refreshToken": str(refresh),
+                "expires_at": refresh.access_token.payload.get("exp"),
+                "user": {
+                    "id": user.id,
+                    "email": user.email,
+                    "name": user.name,
+                },
+            },
+            status=status.HTTP_201_CREATED,
+        )
+
 
 
 class LoginView(TokenObtainPairView):
