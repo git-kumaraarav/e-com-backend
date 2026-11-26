@@ -1,6 +1,6 @@
 from celery import shared_task
 
-from core.services.email_utils import send_otp_email
+from core.utils.email_utils import send_otp_email
 
 
 @shared_task

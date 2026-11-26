@@ -2,10 +2,10 @@ from django.db import transaction
 from django.db.models import F
 from rest_framework.exceptions import ValidationError
 
+from core.utils.razorpay_client import client
 from users.models import Address, User
 
 from ..models import CartItem, Order, OrderItem
-from ...core.services.razorpay_client import client
 
 
 @transaction.atomic
@@ -66,7 +66,7 @@ def create_order(*, user: User, address: Address) -> Order:
             }
         )
     except Exception as e:
-        raise ValidationError({"detail": f"Failed to create payment link: {str(e)}"})
+        raise ValidationError({"detail": f"Failed to create payment link: {e!s}"})
 
     order.remote_payment_id = payment["id"]
     order.save(update_fields=["remote_payment_id"])

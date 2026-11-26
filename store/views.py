@@ -1,20 +1,11 @@
 from django.db.models import Q, QuerySet
 from django.utils import timezone
-from rest_framework import generics, permissions, viewsets
+from rest_framework import generics, permissions, status, viewsets
 from rest_framework.request import Request
-import razorpay.errors
-from django.shortcuts import get_object_or_404
-from rest_framework import status
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
-from core.services.payment_verification import verify_payment
-
-from .models import Order
-from .razorpay_client import client
-from .serializers import OrderSerializer, PaymentVerificationSerializer
-
-rom rest_framework.response import Response
+from core.utils.payment_verification import verify_payment
 
 from .models import (
     CarouselBanner,
@@ -103,8 +94,8 @@ class SizeVariantViewSet(viewsets.ModelViewSet):
     serializer_class = SizeVariantSerializer
     permission_classes = (IsAdminOrReadOnly,)
 
-    def get_queryset(self, request: Request) -> QuerySet[SizeVariant]:  # type: ignore
-        return SizeVariant.objects.filter(products__is_active=True)
+    def get_queryset(self) -> QuerySet[SizeVariant]:  # type: ignore
+        return SizeVariant.objects.filter(product__is_active=True)
 
 
 class InstagramFeedViewSet(viewsets.ReadOnlyModelViewSet):

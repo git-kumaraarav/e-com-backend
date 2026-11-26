@@ -3,9 +3,9 @@ from django.shortcuts import get_object_or_404
 from rest_framework import status
 from rest_framework.response import Response
 
-from ...store.models import Order
-from ...store.serializers import OrderDetailSerializer, PaymentVerificationSerializer
-from .razorpay_client import client
+from core.utils.razorpay_client import client
+from store.models import Order
+from store.serializers import OrderDetailSerializer, PaymentVerificationSerializer
 
 
 def verify_payment(request):

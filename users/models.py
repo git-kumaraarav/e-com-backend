@@ -34,9 +34,7 @@ class UserManager(BaseUserManager):
 class User(AbstractBaseUser, PermissionsMixin):
     email = models.EmailField(unique=True)
     name = models.CharField(max_length=255)
-    email_verified = models.BooleanField(default=False)
     phone_number = models.CharField(max_length=20, blank=True)
-    otp_secret = models.CharField(max_length=6, default=pyotp.random_base32())
     is_active = models.BooleanField(default=True)
     is_staff = models.BooleanField(default=False)
     is_superuser = models.BooleanField(default=False)
@@ -71,4 +69,3 @@ class Address(models.Model):
 
     def __str__(self) -> str:
         return f"{self.street}, {self.city}, {self.state}, {self.postal_code}, {self.country}"
-
