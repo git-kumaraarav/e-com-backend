@@ -10,7 +10,6 @@ from store.views import (
     CartViewSet,
     CheckoutView,
     EventSaleBannerViewSet,
-    InstagramFeedViewSet,
     NewlyLaunched,
     OrderHistoryViewSet,
     ProductViewSet,
@@ -19,6 +18,7 @@ from store.views import (
     VerifyPaymentAPIView,
     WishListViewset,
 )
+from extras.views import InstagramFeedViewSet
 from users.views import (
     AddressListView,
     LoginView,

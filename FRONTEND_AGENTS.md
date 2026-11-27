@@ -92,7 +92,7 @@ Paginated responses use `CursorPaginationExt`:
             "name": "related product name"
             "slug" : "related-product-name"
             "url": "http://127.0.0.1:8000/api/products/related-product-name/"
-          }, 
+          },
         ],
         "description": "A product description",
         "image": null,
@@ -134,7 +134,7 @@ Paginated responses use `CursorPaginationExt`:
         "name": "related product name"
         "slug" : "related-product-name"
         "url": "http://127.0.0.1:8000/api/products/related-product-name/"
-      }, 
+      },
     ],
     "description": "A product description",
     "image": null,
@@ -165,7 +165,7 @@ Paginated responses use `CursorPaginationExt`:
 | Category                 | Endpoints                                                                      |
 | ------------------------ | ------------------------------------------------------------------------------ |
 | Actually paginated       | Products, order history, cart items, wishlist, Search, newly launched          |
-| No pagination configured | Banners, event banners, Instagram feed, addresses, authentication, user profile, OAuth |
+| No pagination configured | Banners, event banners, Instagram feed, size variants, addresses, checkout/payment, authentication, user profile, OAuth |
 
 ## Authentication endpoints
 
@@ -177,13 +177,21 @@ Authorization: Bearer <access-token>
 
 | Route                      | HTTP method    | Properties                                                                                                                         |
 | -------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
-| `/api/auth/register/`      | `POST`         | Request: `name`, `email`, `password`. Response: `id`, `name`, `email`. `password` is write-only and must be at least 8 characters. |
+| `/api/auth/register/`      | `POST`         | Request: `name`, `email`, `password`. Intended response asks the user to verify their email. `password` must be at least 8 characters. |
+| `/api/auth/verify-email/`  | `POST`         | Request: `email`, `otp` as form-encoded fields. The view currently reads `request.POST`. |
+| `/api/auth/resend-otp/`   | `POST`         | Request: `email`. Sends a replacement verification code when a signup is pending. |
 | `/api/auth/login/`         | `POST`         | Request: `email`, `password`. Response: `accessToken`, `refreshToken`, `expires_at`, and `user` (`id`, `email`, `name`).           |
 | `/api/auth/token/`         | `POST`         | Request: `email`, `password`. Response: SimpleJWT `access` and `refresh` tokens.                                                   |
 | `/api/auth/token/refresh/` | `POST`         | Request: `refreshToken`. Response: `accessToken`, `refreshToken`, `expires_at`; a new refresh token is issued.                    |
 | `/api/auth/me/`            | `GET`          | Response: `email`, `name`.                                                                                                         |
 | `/api/auth/me/`            | `PUT`, `PATCH` | Writable properties: `email`, `name`.                                                                                              |
 | `/api/auth/oauth/`         | `POST`         | Request: `token`, `provider` (`google`, `github`, or `facebook`). Google is currently the implemented provider.                    |
+
+Signup verification currently has backend issues: registration calls
+`serializer.validated_data()` even though DRF exposes `validated_data` as a
+property, and it caches `otp_code`, `name`, and `password` while verification
+reads `otp`, `username`, and `password_hash`. Do not assume signup or
+verify-email succeeds until these are aligned.
 
 ## Catalog and content
 
@@ -204,7 +212,8 @@ Product response properties are `id`, `name`, `slug`, `description`, `image`,
 and `updated_at`. `related_variants` contains nested product summaries with
 `id`, `name`, `slug`, `related_variants`, and a detail `url`. Each
 `size_variants` item contains `size`, `stock`, and decimal-string `price`.
-Size variants are not managed by a separate registered API route.
+Size variants are also available at `/api/size-variants/` and
+`/api/size-variants/<id>/`. Reads are public; writes require an admin user.
 
 ### Banners
 
@@ -236,6 +245,18 @@ read-only endpoint.
 | ----------- | ----------------------- | ----------------------------------------------------------------------------------------- |
 | `GET`       | `/api/search/?q=<term>` | Publicly searches active products by `name` or `description`. Returns product properties. |
 | `GET`       | `/api/newly-launched/`  | Publicly lists active products ordered by creation date. Returns product properties.      |
+
+## Checkout and payment
+
+| HTTP method | URL                           | Properties |
+| ----------- | ----------------------------- | ---------- |
+| `POST`      | `/api/u/checkout/`            | Requires authentication; creates checkout from the user's cart and address. |
+| `POST`      | `/api/u/checkout/verify/`     | Requires authentication; verifies the Razorpay payment. |
+
+Payment verification currently has a backend contract mismatch: the view reads
+`razorpay_order_id`, but `PaymentVerificationSerializer` does not accept that
+field. The payment verification flow needs a backend fix before the frontend
+can complete it reliably.
 
 ## User-owned resources
 

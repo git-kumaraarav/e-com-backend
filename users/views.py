@@ -1,10 +1,9 @@
-import os
 import secrets
 from datetime import datetime
 
+from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.core.cache import cache
-from dotenv import load_dotenv
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from rest_framework import generics, permissions, status
@@ -28,16 +27,14 @@ from .serializers import (
     UserRegistrationSerializer,
 )
 
-load_dotenv()  # Load environment variables from .env file
-
 OTP_TTL_SECONDS = 600  # 10 minutes
 
 
 class OAuthProviders:
     def __init__(self) -> None:
-        self.google_client_id = os.environ.get("GOOGLE_CLIENT_ID")
-        self.github_client_id = os.environ.get("GITHUB_CLIENT_ID")
-        self.facebook_client_id = os.environ.get("FACEBOOK_CLIENT_ID")
+        self.google_client_id = settings.GOOGLE_CLIENT_ID
+        self.github_client_id = settings.GITHUB_CLIENT_ID
+        self.facebook_client_id = settings.FACEBOOK_CLIENT_ID
 
     def verify_google_token(self, token: str) -> dict[str, str | None] | None:
         try:

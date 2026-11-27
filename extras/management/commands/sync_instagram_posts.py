@@ -1,6 +1,6 @@
 from django.core.management.base import BaseCommand
 
-from store.instagram import fetch_instagram_posts
+from extras.services.instagram import fetch_instagram_posts
 
 
 class Command(BaseCommand):

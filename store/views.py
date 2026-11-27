@@ -11,7 +11,6 @@ from .models import (
     CarouselBanner,
     Cart,
     EventSaleBanner,
-    InstagramPost,
     Order,
     Product,
     SizeVariant,
@@ -26,7 +25,6 @@ from .serializers import (
     CartSerializer,
     CheckoutSerializer,
     EventSaleBannerSerializer,
-    InstagramPostSerializer,
     OrderDetailSerializer,
     ProductSerializer,
     SizeVariantSerializer,
@@ -97,14 +95,6 @@ class SizeVariantViewSet(viewsets.ModelViewSet):
     def get_queryset(self) -> QuerySet[SizeVariant]:  # type: ignore
         return SizeVariant.objects.filter(product__is_active=True)
 
-
-class InstagramFeedViewSet(viewsets.ReadOnlyModelViewSet):
-    permission_classes = (permissions.AllowAny,)
-    serializer_class = InstagramPostSerializer
-
-    def get_queryset(self) -> QuerySet[InstagramPost]:  # type: ignore
-        queryset = InstagramPost.objects.order_by("-timestamp")
-        return queryset[:9] if self.action == "list" else queryset
 
 
 class SearchViewSet(viewsets.GenericViewSet):

@@ -1,5 +1,6 @@
 # accounts/brevo_mailer.py
 import os
+from django.conf import settings
 
 from brevo import Brevo
 from brevo.core.api_error import ApiError
@@ -7,16 +8,13 @@ from brevo.transactional_emails import (
     SendTransacEmailRequestSender,
     SendTransacEmailRequestToItem,
 )
-from dotenv import load_dotenv
-
-load_dotenv()  # Load environment variables from .env file
 
 def send_otp_email(to_email: str, otp_code: str, recipient_name: str = "") -> str:
     client = Brevo(api_key=os.getenv("BREVO_API_KEY"), timeout=15.0)
 
     sender = SendTransacEmailRequestSender(
-        email=os.getenv("BREVO_SENDER_EMAIL"),
-        name=os.getenv("BREVO_SENDER_NAME"),
+        email=settings.BREVO_SENDER_EMAIL,
+        name=settings.BREVO_SENDER_NAME,
     )
     recipient = SendTransacEmailRequestToItem(
         email=to_email,

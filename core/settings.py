@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "rest_framework_simplejwt",
     "users",
     "store",
+    "extras"
 ]
 
 MIDDLEWARE = [
@@ -162,7 +163,11 @@ MAILERS = {
 
 AUTH_USER_MODEL = "users.User"
 
-INSTA_LONG_LIVED_TOKEN = os.environ.get("INSTA_LONG_LIVED_TOKEN", "")
+INSTAGRAM_ACCESS_TOKEN = os.environ.get("INSTAGRAM_ACCESS_TOKEN", "")
+INSTAGRAM_ACCOUNT_ID = os.environ.get("INSTAGRAM_ACCOUNT_ID", "")
+INSTAGRAM_GRAPH_API_VERSION = os.environ.get(
+    "INSTAGRAM_GRAPH_API_VERSION", "v27.0"
+)
 
 # Django project settings.py
 SIMPLE_JWT = {
@@ -227,3 +232,12 @@ CELERY_ACCEPT_CONTENT = ["json"]
 CELERY_TASK_SERIALIZER = "json"
 CELERY_RESULT_SERIALIZER = "json"
 CELERY_TIMEZONE = TIME_ZONE
+
+
+## Variables 
+GOOGLE_CLIENT_ID=os.environ.get("GOOGLE_CLIENT_ID", "")
+RAZORPAY_KEY_ID=os.environ.get("RAZORPAY_KEY_ID", "")
+RAZORPAY_KEY_SECRET=os.environ.get("RAZORPAY_KEY_SECRET", "")
+INSTAGRAM_ID=os.environ.get("INSTAGRAM_ID", "")
+INSTAGRAM_SECRET=os.environ.get("INSTAGRAM_SECRET", "")
+BREVO_API_KEY=os.environ.get("BREVO_API_KEY", "")

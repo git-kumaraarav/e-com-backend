@@ -9,7 +9,6 @@ from .models import (
     Cart,
     CartItem,
     EventSaleBanner,
-    InstagramPost,
     Order,
     OrderItem,
     Product,
@@ -235,12 +234,6 @@ class EventSaleBannerSerializer(serializers.ModelSerializer):
             "ends_at",
         )
         read_only_fields = ("id",)
-
-
-class InstagramPostSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = InstagramPost
-        fields = "__all__"
 
 
 class WishListSerializer(serializers.ModelSerializer):
