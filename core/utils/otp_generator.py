@@ -16,4 +16,4 @@ def get_email_totp(email: str) -> pyotp.TOTP:
 
     # pyotp requires a valid Base32 secret (first 20 bytes -> 32 Base32 chars)
     base32_secret = base64.b32encode(digest[:20]).decode("utf-8")
-    return pyotp.TOTP(base32_secret, interval=300)
+    return pyotp.TOTP(base32_secret, interval=120)

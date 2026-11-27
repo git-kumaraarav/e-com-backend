@@ -59,6 +59,65 @@
           ]
         },
         {
+          "name": "Verify Email OTP",
+          "description": "Complete registration with the OTP delivered to user@example.com. Replace the sample OTP with the code from the email.",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"paste-otp-from-email\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/verify-email/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Email OTP verification creates the account', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Resend Email OTP",
+          "description": "Request another email OTP for a pending signup. Resend cooldowns are enforced by the API.",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/resend-otp/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('A new email OTP was sent', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  pm.expect(pm.response.json().status).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Login",
           "request": {
             "auth": { "type": "noauth" },
@@ -611,6 +670,30 @@
             "method": "GET",
             "url": "{{baseUrl}}/api/instagram-feed/{{instagramPostId}}/"
           }
+        },
+        {
+          "name": "Manually Sync Instagram Feed",
+          "description": "Admin-only. Fetches Instagram media and updates the cached feed.",
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/instagram-feed/sync/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Instagram feed sync succeeds for an admin', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(true);",
+                  "  pm.expect(body.data).to.have.property('saved_count');",
+                  "});"
+                ]
+              }
+            }
+          ]
         }
       ]
     }

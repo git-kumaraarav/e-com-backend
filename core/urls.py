@@ -18,13 +18,15 @@ from store.views import (
     VerifyPaymentAPIView,
     WishListViewset,
 )
-from extras.views import InstagramFeedViewSet
+from extras.views import InstagramFeedSyncView, InstagramFeedViewSet
 from users.views import (
     AddressListView,
+    ForgetPasswordRequest,
     LoginView,
     OAuthView,
     RegisterView,
     ResendOTPView,
+    ResetPassword,
     TokenRefreshView,
     UserProfileView,
     VerifyEmailView,
@@ -48,12 +50,27 @@ urlpatterns = [
     path("api/auth/register/", RegisterView.as_view(), name="register"),
     path("api/auth/verify-email/", VerifyEmailView.as_view(), name="verify-email"),
     path("api/auth/resend-otp/", ResendOTPView.as_view(), name="resend-otp"),
+    path(
+        "api/auth/forgot-password/",
+        ForgetPasswordRequest.as_view(),
+        name="forgot-password",
+    ),
+    path(
+        "api/auth/reset-password/",
+        ResetPassword.as_view(),
+        name="reset-password",
+    ),
     path("api/auth/login/", LoginView.as_view(), name="login"),
     path("api/auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
     path("api/auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("api/auth/me/", UserProfileView.as_view(), name="user-profile"),
     path("api/auth/oauth/", OAuthView.as_view(), name="oauth_login"),
     path("api/u/checkout/", CheckoutView.as_view(), name="checkout"),
+    path(
+        "api/instagram-feed/sync/",
+        InstagramFeedSyncView.as_view(),
+        name="instagram-feed-sync",
+    ),
     path(
         "api/u/checkout/verify/",
         VerifyPaymentAPIView.as_view(),

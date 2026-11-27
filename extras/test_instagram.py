@@ -1,5 +1,6 @@
 from unittest.mock import Mock, patch
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase, override_settings
 from django.urls import reverse
 from rest_framework.test import APITestCase
@@ -24,6 +25,33 @@ class InstagramFeedApiTests(APITestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(len(response.data), 9)
         self.assertEqual(response.data[0]["insta_id"], "9")
+
+
+class InstagramFeedSyncApiTests(APITestCase):
+    @patch("extras.views.fetch_instagram_posts")
+    def test_sync_requires_staff_and_fetches_posts(self, mock_fetch: Mock) -> None:
+        endpoint = reverse("instagram-feed-sync")
+        mock_fetch.return_value = 3
+
+        self.assertEqual(self.client.post(endpoint).status_code, 401)
+
+        regular_user = get_user_model().objects.create_user(
+            email="customer@example.com", password="strong-password-123"
+        )
+        self.client.force_authenticate(regular_user)
+        self.assertEqual(self.client.post(endpoint).status_code, 403)
+
+        admin_user = get_user_model().objects.create_user(
+            email="staff@example.com",
+            password="strong-password-123",
+            is_staff=True,
+        )
+        self.client.force_authenticate(admin_user)
+        response = self.client.post(endpoint)
+
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response.data["saved_count"], 3)
+        mock_fetch.assert_called_once_with()
 
 
 class InstagramSyncTests(TestCase):

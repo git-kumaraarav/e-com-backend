@@ -1,9 +1,10 @@
-import secrets
-from datetime import datetime
+from math import ceil
 
 from django.conf import settings
 from django.contrib.auth.hashers import make_password
 from django.core.cache import cache
+from django.db import transaction
+from django.utils import timezone
 from google.auth.transport import requests as google_requests
 from google.oauth2 import id_token
 from rest_framework import generics, permissions, status
@@ -22,12 +23,16 @@ from users.models import User
 
 from .serializers import (
     AddressSerializer,
+    EmailSerializer,
     OAuthSerializer,
+    ResendOTPSerializer,
+    ResetPasswordSerializer,
     UserProfileSerializer,
     UserRegistrationSerializer,
+    VerifyEmailSerializer,
 )
 
-OTP_TTL_SECONDS = 600  # 10 minutes
+OTP_TTL_SECONDS = 300  # 5 minutes in seconds
 
 
 class OAuthProviders:
@@ -107,12 +112,15 @@ class OAuthView(generics.GenericAPIView):
 
 class VerifyEmailView(generics.GenericAPIView):
     permission_classes = (permissions.AllowAny,)
+    serializer_class = VerifyEmailSerializer
 
     def post(self, request):
-        email = request.POST.get("email", "").strip().lower()
-        entered_otp = request.POST.get("otp", "").strip()
-        cache_key = f"pending_signup_{email}"
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"]
+        entered_otp = serializer.validated_data["otp"]
 
+        cache_key = f"pending_signup_{email}"
         pending = cache.get(cache_key)
         if not pending:
             return Response(
@@ -125,18 +133,27 @@ class VerifyEmailView(generics.GenericAPIView):
                 {"error": "Too many failed attempts. Please sign up again."}, status=status.HTTP_429_TOO_MANY_REQUESTS
             )
 
-        if not secrets.compare_digest(pending["otp"], entered_otp):
+        totp = get_email_totp(email)
+
+        # valid_window=1 accepts the current 5-minute window and minor boundary drift
+        if not totp.verify(entered_otp, valid_window=4):
             pending["attempts"] += 1
-            cache.set(cache_key, pending, timeout=OTP_TTL_SECONDS)
-            return Response({"error": "Invalid OTP."}, status=status.HTTP_400_BAD_REQUEST)
+            cache.set(cache_key, pending, timeout=OTP_TTL_SECONDS + 60)
+            return Response({"error": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST)
+
         # OTP verified -> now persist the actual User row in PostgreSQL
         user = User(
-            username=pending["username"],
             email=pending["email"],
+            name=pending["name"],
             password=pending["password_hash"],  # Already hashed via make_password
             is_active=True,
         )
         user.save()
+
+        # Send the OTP email asynchronously using Celery
+        transaction.on_commit(
+            lambda: send_otp_email_task.delay(email, entered_otp, pending["name"])
+        )
 
         cache.delete(cache_key)
 
@@ -145,52 +162,51 @@ class VerifyEmailView(generics.GenericAPIView):
 
 class ResendOTPView(generics.GenericAPIView):
     permission_classes = (permissions.AllowAny,)
+    serializer_class = ResendOTPSerializer
 
     def post(self, request: Request) -> Response:
-        email = request.data.get("email")
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"]
 
-        if not email:
+        cache_key = f"pending_signup_{email}"
+        pending_otp_request = cache.get(cache_key)
+        is_password_reset = False
+        if not pending_otp_request:
+            cache_key = f"reset_password_{email}"
+            pending_otp_request = cache.get(cache_key)
+            is_password_reset = True
+
+        if not pending_otp_request:
             return Response(
-                {"error": "Email is required"}, status=status.HTTP_400_BAD_REQUEST
-            )
-
-        # Retrieve the pending signup data from the cache
-        pending_signup_data = cache.get(f"pending_signup_{email}")
-
-        # wait time
-        remaining_time = (
-            pending_signup_data.get("wait_time", 0) - datetime.now().timestamp()
-            if pending_signup_data
-            else 0
-        )
-
-        if pending_signup_data and remaining_time > 0:
-            wait_time = pending_signup_data["wait_time"]
-            if wait_time > 0:
-                return Response(
-                    {
-                        "error": f"Please wait {wait_time} seconds before requesting a new OTP."
-                    },
-                    status=status.HTTP_429_TOO_MANY_REQUESTS,
-                )
-
-        # no pending signup found
-        if not pending_signup_data:
-            return Response(
-                {"error": "No pending signup found for this email"},
+                {"error": "No pending OTP request found for this email"},
                 status=status.HTTP_404_NOT_FOUND,
             )
 
-        # Generate a new OTP code and update the cache
-        new_otp_code = get_email_totp(email)
-        pending_signup_data["otp_code"] = new_otp_code
-        pending_signup_data["wait_time"] = datetime.now().timestamp() + (60**int(
-            pending_signup_data.get("retry_count", 0)
-        ))  # Increase wait time with each retry
-        cache.set(f"pending_signup_{email}", pending_signup_data)
+        now = timezone.now().timestamp()
+        remaining_time = ceil(pending_otp_request.get("wait_time", 0) - now)
+        if remaining_time > 0:
+            return Response(
+                {"error": f"Please wait {remaining_time} seconds before requesting a new OTP."},
+                status=status.HTTP_429_TOO_MANY_REQUESTS,
+            )
 
-        # Send the new OTP code via email (using Celery task)
-        send_otp_email_task.delay(email, new_otp_code)
+        new_otp_code = get_email_totp(email).now()
+        retry_count = pending_otp_request.get("retry_count", 0)
+        pending_otp_request["otp"] = new_otp_code
+        pending_otp_request["retry_count"] = retry_count + 1
+        pending_otp_request["wait_time"] = now + 60 * (2**retry_count)
+        cache.set(
+            cache_key,
+            pending_otp_request,
+            timeout=OTP_TTL_SECONDS,
+        )
+        if is_password_reset:
+            send_otp_email_task.delay(
+                email, new_otp_code, pending_otp_request.get("name", "")
+            )
+        else:
+            send_otp_email_task.delay(email, new_otp_code)
 
         return Response(
             {"message": "New OTP code sent to your email"},
@@ -204,28 +220,37 @@ class RegisterView(generics.CreateAPIView):
     permission_classes = (permissions.AllowAny,)
 
     def create(self, request: Request, *args, **kwargs) -> Response:
+
+        # validate incoming 
         serializer = self.get_serializer(data=request.data)
         serializer.is_valid(raise_exception=True)
-        data = serializer.validated_data()
+        data = serializer.validated_data
         hashed_password = make_password(data["password"])
+        email = data["email"]
 
-        # Save the user data in the cache for later verification
+        # generate OTP 
+        otp_code = get_email_totp(email).now()
+
+        # cache user data for 5 minutes (300 seconds) with a unique key
         cache.set(
-            f"pending_signup_{data['email']}",
+            f"pending_signup_{email}",
             {
                 "name": data["name"],
-                "email": data["email"],
-                "password": hashed_password,
-                "otp_code": get_email_totp(data["email"]),
-                "wait_time": datetime.now().timestamp()
-                + 60,  # 1 minute wait time before resending OTP
-                "retry_count": 0,  # Track the number of OTP resend attempts
+                "email": email,
+                "password_hash": hashed_password,
+                "otp": otp_code,
+                "attempts": 0,
+                "wait_time": timezone.now().timestamp() + 60,
+                "retry_count": 0,
             },
+            timeout=OTP_TTL_SECONDS,
         )
+        # Send the OTP email asynchronously using Celery
+        send_otp_email_task.delay(email, otp_code, data["name"])
 
         return Response(
             {
-                "message": "User registered successfully. Please check your email for the verification code."
+                "message": "Please check your email for the verification code."
             },
             status=status.HTTP_201_CREATED,
         )
@@ -313,3 +338,77 @@ class AddressListView(GenericViewSet, ListModelMixin, CreateModelMixin):
 
     def get_queryset(self):
         return self.request.user.addresses.all()
+
+
+class ForgetPasswordRequest(generics.GenericAPIView):
+    serializer_class = EmailSerializer
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request: Request, *args, **kwargs) -> Response:
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"]
+
+        try:
+            user = User.objects.get(email=email)
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User with this email does not exist."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        otp_code = get_email_totp(email).now()
+
+        cache.set(
+            f"reset_password_{email}",
+            {
+                "otp": otp_code,
+                "attempts": 0,
+                "wait_time": timezone.now().timestamp() + 60,
+                "retry_count": 0,
+                "name": user.name,
+            },
+            timeout=OTP_TTL_SECONDS,
+        )
+        send_otp_email_task.delay(email, otp_code, user.name)
+
+        return Response(
+            {"message": "Please check your email for the verification code."},
+            status=status.HTTP_200_OK,
+        )
+        
+
+class ResetPassword(generics.GenericAPIView):
+    serializer_class = ResetPasswordSerializer
+    permission_classes = (permissions.AllowAny,)
+
+    def post(self, request: Request, *args, **kwargs) -> Response:
+        # 1. GET the email, otp and new password from the request
+        serializer = self.get_serializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        email = serializer.validated_data["email"]
+        otp = serializer.validated_data["otp"]
+        new_password = serializer.validated_data["new_password"]
+
+        # 2. Verify the OTP using the get_email_totp function
+        totp = get_email_totp(email)
+        if not totp.verify(otp, valid_window=4):
+            return Response(
+                {"error": "Invalid or expired OTP."}, status=status.HTTP_400_BAD_REQUEST
+            )
+
+        # 3. If OTP is valid, update the user's password with the new password
+        try:
+            user = User.objects.get(email=email)
+            user.set_password(new_password)
+            user.save()
+        except User.DoesNotExist:
+            return Response(
+                {"error": "User with this email does not exist."},
+                status=status.HTTP_404_NOT_FOUND,
+            )
+
+        return Response(
+            {"message": "Password reset successfully."},
+            status=status.HTTP_200_OK,
+        )
