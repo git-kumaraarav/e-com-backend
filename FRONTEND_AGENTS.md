@@ -178,8 +178,10 @@ Authorization: Bearer <access-token>
 | Route                      | HTTP method    | Properties                                                                                                                         |
 | -------------------------- | -------------- | ---------------------------------------------------------------------------------------------------------------------------------- |
 | `/api/auth/register/`      | `POST`         | Request: `name`, `email`, `password`. Intended response asks the user to verify their email. `password` must be at least 8 characters. |
-| `/api/auth/verify-email/`  | `POST`         | Request: `email`, `otp` as form-encoded fields. The view currently reads `request.POST`. |
-| `/api/auth/resend-otp/`   | `POST`         | Request: `email`. Sends a replacement verification code when a signup is pending. |
+| `/api/auth/verify-email/`  | `POST`         | JSON request: `email`, `otp`. Verifies a pending signup. |
+| `/api/auth/resend-otp/`   | `POST`         | JSON request: `email`. Resends an OTP for a pending signup or password-reset request; resend cooldown applies. |
+| `/api/auth/forgot-password/` | `POST`       | Public. JSON request: `email`. Sends a password-reset OTP to an existing account. |
+| `/api/auth/reset-password/` | `POST`         | Public. JSON request: `email`, `otp`, `new_password` (minimum 8 characters). |
 | `/api/auth/login/`         | `POST`         | Request: `email`, `password`. Response: `accessToken`, `refreshToken`, `expires_at`, and `user` (`id`, `email`, `name`).           |
 | `/api/auth/token/`         | `POST`         | Request: `email`, `password`. Response: SimpleJWT `access` and `refresh` tokens.                                                   |
 | `/api/auth/token/refresh/` | `POST`         | Request: `refreshToken`. Response: `accessToken`, `refreshToken`, `expires_at`; a new refresh token is issued.                    |
@@ -187,11 +189,9 @@ Authorization: Bearer <access-token>
 | `/api/auth/me/`            | `PUT`, `PATCH` | Writable properties: `email`, `name`.                                                                                              |
 | `/api/auth/oauth/`         | `POST`         | Request: `token`, `provider` (`google`, `github`, or `facebook`). Google is currently the implemented provider.                    |
 
-Signup verification currently has backend issues: registration calls
-`serializer.validated_data()` even though DRF exposes `validated_data` as a
-property, and it caches `otp_code`, `name`, and `password` while verification
-reads `otp`, `username`, and `password_hash`. Do not assume signup or
-verify-email succeeds until these are aligned.
+Registration, verification, forgot-password, and reset-password requests are
+public endpoints. Use `/api/auth/resend-otp/` to resend either a signup or a
+password-reset OTP.
 
 ## Catalog and content
 
@@ -230,14 +230,16 @@ Size variants are also available at `/api/size-variants/` and
 
 ### Instagram feed
 
-| HTTP method | URL                         | Properties                                  |
-| ----------- | --------------------------- | ------------------------------------------- |
-| `GET`       | `/api/instagram-feed/`      | Publicly reads up to 9 posts, newest first. |
-| `GET`       | `/api/instagram-feed/<id>/` | Publicly reads one post.                    |
+| HTTP method | URL                              | Properties                                                                    |
+| ----------- | -------------------------------- | ----------------------------------------------------------------------------- |
+| `GET`       | `/api/instagram-feed/`           | Publicly reads up to 9 posts, newest first.                                    |
+| `GET`       | `/api/instagram-feed/<id>/`      | Publicly reads one post.                                                      |
+| `POST`      | `/api/instagram-feed/sync/`      | Admin/staff only. Fetches Instagram media and upserts posts; returns `saved_count`. |
 
 Instagram post properties are `id`, `insta_id`, `caption`, `media_type`,
-`media_url`, `thumbnail_url`, `permalink`, and `timestamp`. This is a
-read-only endpoint.
+`media_url`, `thumbnail_url`, `permalink`, and `timestamp`. Feed reads are
+public and read-only; manual synchronization requires an admin/staff bearer
+token.
 
 ### Search and newly launched products
 
@@ -248,30 +250,26 @@ read-only endpoint.
 
 ## Checkout and payment
 
-| HTTP method | URL                           | Properties |
-| ----------- | ----------------------------- | ---------- |
-| `POST`      | `/api/u/checkout/`            | Requires authentication; creates checkout from the user's cart and address. |
-| `POST`      | `/api/u/checkout/verify/`     | Requires authentication; verifies the Razorpay payment. |
-
-Payment verification currently has a backend contract mismatch: the view reads
-`razorpay_order_id`, but `PaymentVerificationSerializer` does not accept that
-field. The payment verification flow needs a backend fix before the frontend
-can complete it reliably.
+| HTTP method | URL                       | Properties                                                                                                                    |
+| ----------- | ------------------------- | ----------------------------------------------------------------------------------------------------------------------------- |
+| `POST`      | `/api/u/checkout/`        | Requires authentication; body `{"address": <address_id>}`. Creates the `Order` and Razorpay order, returning the `Order`.      |
+| `POST`      | `/api/u/checkout/verify/` | Requires authentication; body `{"order_id": "<order_uuid>", "razorpay_payment_id": "...", "razorpay_signature": "..."}`. Verifies the Razorpay signature against the order's `remote_order_id` and marks `is_paid=true`. |
 
 ## User-owned resources
 
 ### Orders
 
-| HTTP method | URL                             | Properties |
-| ----------- | ------------------------------- | ---------- |
-| `GET`       | `/api/orders-history/`          | Reads the authenticated user's order history. |
-| `GET`       | `/api/orders-history/<id>/`     | Reads one owned order. |
+| HTTP method | URL                         | Properties                                    |
+| ----------- | --------------------------- | --------------------------------------------- |
+| `GET`       | `/api/orders-history/`      | Reads the authenticated user's order history. |
+| `GET`       | `/api/orders-history/<id>/` | Reads one owned order (UUID `id`).            |
 
 Order history is read-only; this project does not currently register an
-`/api/orders/` creation or management route. Existing order properties are
-`id`, `user`, `status`, `shipping_address`, `subtotal`, `items`,
-`created_at`, and `updated_at`. The history serializer exposes item product
-names as a string list.
+`/api/orders/` creation or management route. `Order` properties are `id`
+(UUID), `remote_order_id`, `remote_payment_id`, `remote_payment_signature`,
+`user`, `status`, `is_paid`, `shipping_address`, `items`, `created_at`, and
+`updated_at`. Each `items` entry contains `id`, `product_name`, `product_size`,
+`unit_price`, `quantity`, and `subtotal`.
 
 ### Cart items
 

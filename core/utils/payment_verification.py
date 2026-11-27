@@ -14,7 +14,7 @@ def verify_payment(request):
     data = serializer.validated_data
 
     # 1. Fetch the order from YOUR database using the razorpay_order_id
-    order = get_object_or_404(Order, razorpay_order_id=data["razorpay_order_id"])
+    order = get_object_or_404(Order, id=data["order_id"], user=request.user)
 
     # Prevent duplicate processing if already marked paid
     if order.is_paid:
@@ -26,9 +26,15 @@ def verify_payment(request):
             status=status.HTTP_200_OK,
         )
 
+    if not order.remote_order_id:
+        return Response(
+            {"error": "Order does not have an associated Razorpay order ID."},
+            status=status.HTTP_400_BAD_REQUEST,
+        )
+
     # 2. Verify the HMAC-SHA256 signature using your DB's razorpay_order_id
     params_dict = {
-        "razorpay_order_id": order.razorpay_order_id,
+        "razorpay_order_id": order.remote_order_id,
         "razorpay_payment_id": data["razorpay_payment_id"],
         "razorpay_signature": data["razorpay_signature"],
     }
@@ -42,10 +48,12 @@ def verify_payment(request):
         )
 
     # 3. Signature is valid — mark order as paid and save payment details
-    order.razorpay_payment_id = data["razorpay_payment_id"]
-    order.razorpay_signature = data["razorpay_signature"]
+    order.remote_payment_id = data["razorpay_payment_id"]
+    order.remote_payment_signature = data["razorpay_signature"]
     order.is_paid = True
-    order.save(update_fields=["razorpay_payment_id", "razorpay_signature", "is_paid"])
+    order.save(
+        update_fields=["remote_payment_id", "remote_payment_signature", "is_paid"]
+    )
 
     return Response(
         {

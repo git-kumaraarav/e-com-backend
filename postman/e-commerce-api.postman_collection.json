@@ -90,7 +90,7 @@
         },
         {
           "name": "Resend Email OTP",
-          "description": "Request another email OTP for a pending signup. Resend cooldowns are enforced by the API.",
+          "description": "Request another email OTP for a pending signup or password reset. Use this same endpoint with the email address. Resend cooldowns are enforced by the API.",
           "request": {
             "auth": { "type": "noauth" },
             "method": "POST",
@@ -111,6 +111,66 @@
                   "pm.test('A new email OTP was sent', function () {",
                   "  pm.response.to.have.status(200);",
                   "  pm.expect(pm.response.json().status).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Forgot Password",
+          "description": "Request a password-reset OTP. Use an email address belonging to an existing account.",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/forgot-password/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Password reset OTP request succeeds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(true);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
+          "name": "Reset Password",
+          "description": "Set a new password with the OTP sent by Forgot Password. Replace the sample OTP with the code from the email.",
+          "request": {
+            "auth": { "type": "noauth" },
+            "method": "POST",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"user@example.com\",\n  \"otp\": \"paste-otp-from-email\",\n  \"new_password\": \"new-password123\"\n}",
+              "options": { "raw": { "language": "json" } }
+            },
+            "url": "{{baseUrl}}/api/auth/reset-password/"
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Password reset succeeds', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "  const body = pm.response.json();",
+                  "  pm.expect(body.status).to.eql(true);",
                   "});"
                 ]
               }

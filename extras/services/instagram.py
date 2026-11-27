@@ -13,13 +13,13 @@ class InstagramAPIError(RuntimeError):
 
 
 def _get_api_configuration() -> tuple[str, str, str]:
-    token = settings.INSTAGRAM_ACCESS_TOKEN
+    token = settings.INSTAGRAM_SECRET
     if not token:
         raise ImproperlyConfigured(
             "Set INSTAGRAM_ACCESS_TOKEN to a Unified Login system-user access token."
         )
 
-    account_id = settings.INSTAGRAM_ACCOUNT_ID
+    account_id = settings.INSTAGRAM_ID
     if not account_id:
         raise ImproperlyConfigured(
             "Set INSTAGRAM_ACCOUNT_ID from /me/assigned_instagram_accounts."

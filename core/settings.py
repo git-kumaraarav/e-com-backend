@@ -16,7 +16,6 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 
-
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 load_dotenv(os.environ.get("DJANGO_ENV_FILE", BASE_DIR / ".env"))
@@ -243,3 +242,5 @@ INSTAGRAM_SECRET=os.environ.get("INSTAGRAM_SECRET", "")
 BREVO_API_KEY=os.environ.get("BREVO_API_KEY", "")
 BREVO_SENDER_EMAIL=os.environ.get("BREVO_SENDER_EMAIL", "")
 BREVO_SENDER_NAME=os.environ.get("BREVO_SENDER_NAME", "")
+GITHUB_CLIENT_ID=os.environ.get("GITHUB_CLIENT_ID", "")
+FACEBOOK_CLIENT_ID=os.environ.get("FACEBOOK_CLIENT_ID", "")

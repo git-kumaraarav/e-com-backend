@@ -94,7 +94,7 @@ class CartSerializer(serializers.ModelSerializer):
 class SizeVariantSerializer(serializers.ModelSerializer):
     class Meta:
         model = SizeVariant
-        fields = ("stock", "size", "price")
+        fields = ("id", "stock", "size", "price")
 
 
 class ReviewSerializer(serializers.ModelSerializer):
@@ -192,6 +192,7 @@ class OrderDetailSerializer(serializers.ModelSerializer):
 
 
 class CheckoutSerializer(serializers.ModelSerializer):
+    user = serializers.HiddenField(default=serializers.CurrentUserDefault())
     address = serializers.PrimaryKeyRelatedField(
         queryset=Address.objects.all(), write_only=True, required=True
     )
@@ -201,7 +202,11 @@ class CheckoutSerializer(serializers.ModelSerializer):
         fields = "__all__"
         read_only_fields = (
             "id",
+            "remote_order_id",
+            "remote_payment_id",
+            "remote_payment_signature",
             "status",
+            "is_paid",
             "subtotal",
             "shipping_address",
             "created_at",
@@ -216,6 +221,7 @@ class CheckoutSerializer(serializers.ModelSerializer):
         return address
 
     def create(self, validated_data: dict[str, Any]) -> Order:
+        validated_data.pop("user", None)
         address = validated_data.pop("address")
         return create_order(user=self.context["request"].user, address=address)
 
@@ -246,5 +252,6 @@ class WishListSerializer(serializers.ModelSerializer):
 
 
 class PaymentVerificationSerializer(serializers.Serializer):
+    order_id = serializers.CharField(required=True)
     razorpay_payment_id = serializers.CharField(required=True)
     razorpay_signature = serializers.CharField(required=True)

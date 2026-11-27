@@ -68,11 +68,13 @@ class Order(models.Model):
         DELIVERED = "delivered", "Delivered"
         CANCELLED = "cancelled", "Cancelled"
 
-    reciept_id = models.UUIDField(
+    id = models.UUIDField(
         primary_key=True, default=uuid.uuid4, editable=False, unique=True
     )
 
+    remote_order_id = models.CharField(max_length=100, blank=True, null=True)
     remote_payment_id = models.CharField(max_length=100, blank=True, null=True)
+    remote_payment_signature = models.CharField(max_length=255, blank=True, null=True)
 
     user = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.CASCADE, related_name="orders"
@@ -87,7 +89,7 @@ class Order(models.Model):
 
     @property
     def subtotal(self) -> Decimal:
-        return Decimal("0.00") + sum(self.items.subtotal for item in self.items.all())
+        return Decimal("0.00") + sum(item.subtotal for item in self.items.all())
 
     class Meta:
         ordering = ("-created_at",)
@@ -96,8 +98,8 @@ class Order(models.Model):
         return f"Order #{self.pk}"
 
     @property
-    def get_reciept_id(self):
-        return self.reciept_id.hex
+    def get_id(self):
+        return self.id.hex
 
 
 class OrderItem(models.Model):

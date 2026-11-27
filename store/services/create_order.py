@@ -57,22 +57,22 @@ def create_order(*, user: User, address: Address) -> Order:
     # 5. Create pay link for the order
     client.set_app_details({"title" : "Django", "version" : "6.1"})
     try: 
-        payment = client.order.create(data=
+        razorpay_order = client.order.create(data=
             {
                 "amount": int(order.subtotal * 100),  # Amount in paise
                 "currency": "INR",
-                "receipt": f"order_{order.get_reciept_id}",
+                "receipt": f"order_{order.id.hex}",
                 "payment_capture": 1,
             }
         )
     except Exception as e:
         raise ValidationError({"detail": f"Failed to create payment link: {e!s}"})
 
-    order.remote_payment_id = payment["id"]
-    order.save(update_fields=["remote_payment_id"])
+    order.remote_order_id = razorpay_order["id"]
+    order.save(update_fields=["remote_order_id"])
 
     # 6. Clear the user's cart
     CartItem.objects.filter(cart__user=user).delete()
 
     # 7. Return the created order
-    return payment
+    return order
