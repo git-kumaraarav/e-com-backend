@@ -106,6 +106,7 @@ Paginated responses use `CursorPaginationExt`:
         "updated_at": "2026-11-03T11:31:43.137504Z",
         "size_variants": [
           {
+            "id": 1,
             "size": "28",
             "stock": 20,
             "price": "300.00"
@@ -146,11 +147,13 @@ Paginated responses use `CursorPaginationExt`:
     "updated_at": "2026-11-10T04:22:12.776696Z",
     "size_variants": [
       {
+        "id": 1,
         "size": "28",
         "stock": 20,
         "price": "300.00"
       },
       {
+        "id": 2,
         "size": "30",
         "stock": 20,
         "price": "500.00"
@@ -210,8 +213,8 @@ Base route: `/api/products/`
 Product response properties are `id`, `name`, `slug`, `description`, `image`,
 `related_variants`, `size_variants`, `attributes`, `is_active`, `created_at`,
 and `updated_at`. `related_variants` contains nested product summaries with
-`id`, `name`, `slug`, `related_variants`, and a detail `url`. Each
-`size_variants` item contains `size`, `stock`, and decimal-string `price`.
+`id`, `name`, `slug`, and a detail `url`. Each
+`size_variants` item contains `id`, `size`, `stock`, and decimal-string `price`.
 Size variants are also available at `/api/size-variants/` and
 `/api/size-variants/<id>/`. Reads are public; writes require an admin user.
 
